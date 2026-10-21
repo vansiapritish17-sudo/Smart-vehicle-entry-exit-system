@@ -1,24 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  Eye,
-  EyeOff,
-  KeyRound,
-  ScanLine,
-  ShieldCheck,
-  User,
-} from "lucide-react";
-import Button from "../components/common/Button";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import apiClient from "../services/apiClient";
 import { useApp } from "../state/AppContext";
-
-/* Decorative plates cycled through the scanner animation on the brand panel. */
-const SCANNER_PLATES = [
-  { plate: "GJ 05 TT 9090", verdict: "AUTHORISED", gate: "Main Gate" },
-  { plate: "MH 12 QR 4417", verdict: "AUTHORISED", gate: "North Gate" },
-  { plate: "KA 03 MZ 2280", verdict: "VISITOR",    gate: "Service Gate" },
-  { plate: "DL 08 CA 7731", verdict: "AUTHORISED", gate: "Main Gate" },
-];
 
 export default function Login() {
   const { signIn, currentUser, authReady } = useApp();
@@ -47,310 +31,261 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#09090b]">
-      <Backdrop />
+    <div className="grid min-h-screen bg-[#09090b] text-zinc-100 lg:grid-cols-[1.1fr_1fr]">
+      <BrandPanel />
 
-      <div className="relative mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[1.05fr_minmax(0,420px)] lg:gap-16 lg:px-8">
-        <BrandPanel />
-
-        {/* ── Sign-in card ── */}
-        <div className="auth-enter auth-delay-3 w-full justify-self-center lg:justify-self-end">
-          {/* Compact wordmark for narrow screens, where the brand panel is hidden */}
-          <div className="mb-7 flex items-center gap-3 lg:hidden">
-            <Crest />
-            <div>
-              <Wordmark className="text-xl" />
-              <p className="text-[11px] tracking-[0.16em] text-zinc-600 uppercase">
-                Vehicle Access Intelligence
-              </p>
-            </div>
+      {/* ── Sign-in side ── */}
+      <main className="flex min-h-screen flex-col px-6 py-6 sm:px-10 sm:py-8 lg:py-10">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 lg:invisible">
+            <Mark />
+            <span className="text-sm font-bold tracking-[0.18em]">BARBICAN</span>
           </div>
+          <ServerStatus />
+        </div>
 
-          <div className="auth-card-glow relative rounded-3xl border border-white/[0.06] bg-[#111113]/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-lg font-bold text-zinc-100">Sign in to the gatehouse</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Authenticate to access live gate control.
-              </p>
-            </div>
+        <div className="auth-enter mx-auto my-auto w-full max-w-[360px] py-12">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-violet-400">
+            Gatehouse access
+          </p>
+          <h2 className="mt-3 text-[1.75rem] font-semibold leading-tight tracking-tight">
+            Sign in
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+            Use the credentials issued by your administrator.
+          </p>
 
-            <form className="grid gap-4" onSubmit={submit}>
-              <AuthField
-                id="login-username"
-                label="Username"
-                icon={<User size={15} />}
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                autoComplete="username"
-                placeholder="Your username"
-                required
-                autoFocus
-              />
+          <form className="mt-8 grid gap-5" onSubmit={submit}>
+            <Field
+              id="login-username"
+              label="Username"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              autoFocus
+            />
 
-              <AuthField
-                id="login-password"
-                label="Password"
-                icon={<KeyRound size={15} />}
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                required
-                trailing={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="grid h-7 w-7 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/8 hover:text-zinc-200"
-                  >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                }
-              />
-
-              {error && (
-                <div
-                  role="alert"
-                  className="animate-fade-up rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300"
+            <Field
+              id="login-password"
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="current-password"
+              required
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="grid h-8 w-8 place-items-center rounded-md text-zinc-500 transition hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
                 >
-                  {error}
-                </div>
-              )}
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              }
+            />
 
-              <Button
-                type="submit"
-                id="btn-login"
-                disabled={busy}
-                className="group mt-1 w-full rounded-xl py-3 text-base font-bold disabled:opacity-60"
+            {error && (
+              <p
+                role="alert"
+                className="animate-fade-up border-l-2 border-red-500 bg-red-500/[0.07] px-3.5 py-2.5 text-sm text-red-300"
               >
-                {busy ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/25 border-t-black" />
-                    Signing in…
-                  </>
-                ) : (
-                  <>
-                    Sign in
-                    <ArrowRight
-                      size={16}
-                      className="transition-transform duration-200 group-hover:translate-x-0.5"
-                    />
-                  </>
-                )}
-              </Button>
-            </form>
-          </div>
+                {error}
+              </p>
+            )}
 
-          <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[11px] text-zinc-700">
-            <ShieldCheck size={12} />
-            Secured by Firebase Authentication
+            <button
+              type="submit"
+              id="btn-login"
+              disabled={busy}
+              className="group mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-950 transition hover:bg-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-zinc-100"
+            >
+              {busy ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-950/20 border-t-zinc-950" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-6 text-xs leading-relaxed text-zinc-600">
+            Forgot your password? An administrator can issue a new one from User Management.
           </p>
         </div>
-      </div>
+
+        <footer className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+          <span>SVEMS · Barbican</span>
+          <span>Secured by Firebase Authentication</span>
+        </footer>
+      </main>
     </div>
   );
 }
 
-/* ── Ambient background: drifting orbs over a receding road grid ── */
-function Backdrop() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="auth-grid absolute inset-x-0 bottom-0 h-[62vh] opacity-90" />
-      <div
-        className="auth-orb absolute -left-32 -top-32 h-[26rem] w-[26rem] rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, #7c3aed, transparent 70%)" }}
-      />
-      <div
-        className="auth-orb-slow absolute -bottom-40 -right-24 h-[22rem] w-[22rem] rounded-full opacity-20 blur-3xl"
-        style={{ background: "radial-gradient(circle, #a3e635, transparent 70%)" }}
-      />
-      {/* Soft scrim only at the very top and sides — the road stays visible */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_38%,transparent_55%,rgba(9,9,11,0.72)_100%)]" />
-    </div>
-  );
-}
-
-/* ── Left half: identity, the scanner motif, and what the system does ── */
+/* ── Left half: identity, the plate motif, and what the system does ── */
 function BrandPanel() {
   return (
-    <div className="hidden lg:block">
-      <div className="auth-enter auth-delay-1 flex items-center gap-3.5">
-        <Crest size="lg" />
-        <div>
-          <Wordmark className="text-[2.1rem] leading-none" />
-          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-600">
-            Vehicle Access Intelligence
-          </p>
+    <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-white/[0.06] bg-[#0c0c0e] px-12 py-10 lg:flex xl:px-16">
+      <div className="auth-enter flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Mark />
+          <span className="text-sm font-bold tracking-[0.18em]">BARBICAN</span>
         </div>
+        <Clock />
       </div>
 
-      <h1 className="auth-enter auth-delay-2 mt-9 max-w-lg text-[2.6rem] font-black leading-[1.08] tracking-tight text-zinc-100">
-        Every vehicle
-        <br />
-        <span className="text-zinc-500">accounted for.</span>
-      </h1>
+      <div className="max-w-xl">
+        <div className="auth-enter auth-delay-1">
+          <Plate />
+        </div>
 
-      <p className="auth-enter auth-delay-2 mt-4 max-w-md text-[15px] leading-relaxed text-zinc-500">
-        A barbican is the fortified gatehouse of a castle — the one point where
-        everything entering or leaving is checked. This is yours.
-      </p>
-
-      <div className="auth-enter auth-delay-3 mt-9">
-        <PlateScanner />
+        <h1 className="auth-enter auth-delay-2 mt-14 text-[3.25rem] font-semibold leading-[1.02] tracking-[-0.035em] xl:text-[3.75rem]">
+          Every vehicle,
+          <br />
+          <span className="text-zinc-500">accounted for.</span>
+        </h1>
+        <p className="auth-enter auth-delay-2 mt-6 max-w-md text-[15px] leading-relaxed text-zinc-400">
+          A barbican is the fortified gatehouse of a castle — the one place where
+          everything coming in or going out is checked. This one checks registrations
+          at the gate, tracks occupancy live, and keeps the full record.
+        </p>
       </div>
 
-      <div className="auth-enter auth-delay-4 mt-8 flex items-center gap-7">
-        <Capability value="24/7" label="Gate monitoring" />
-        <span className="h-8 w-px bg-white/8" />
-        <Capability value="Live" label="Capacity alerts" />
-        <span className="h-8 w-px bg-white/8" />
-        <Capability value="Full" label="Audit trail" />
+      <div className="auth-enter auth-delay-3">
+        <div className="auth-hazard h-1.5 w-full rounded-sm" aria-hidden />
+        <dl className="mt-6 grid grid-cols-3 gap-8">
+          {[
+            ["01", "Gate control", "Entries and exits validated against the register."],
+            ["02", "Live capacity", "Alerts before the facility fills up."],
+            ["03", "Audit trail", "Every movement, gate and operator on record."],
+          ].map(([n, title, body]) => (
+            <div key={n}>
+              <dt className="flex items-baseline gap-2 text-sm font-semibold text-zinc-200">
+                <span className="font-mono text-[11px] text-lime-300">{n}</span>
+                {title}
+              </dt>
+              <dd className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">{body}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </aside>
+  );
+}
+
+/* ── A high-security registration plate, read once by the gate camera on load ── */
+function Plate() {
+  return (
+    <div className="inline-block">
+      <div className="relative overflow-hidden rounded-[10px] bg-zinc-100 p-[3px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]">
+        <div className="flex items-stretch rounded-[7px] border-2 border-zinc-900">
+          <div className="flex w-9 flex-col items-center justify-center gap-1 bg-[#1d3f9e] text-white">
+            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden>
+              <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              {Array.from({ length: 12 }, (_, i) => (
+                <line
+                  key={i}
+                  x1="10" y1="10"
+                  x2={10 + 7.5 * Math.cos((i * Math.PI) / 6)}
+                  y2={10 + 7.5 * Math.sin((i * Math.PI) / 6)}
+                  stroke="currentColor" strokeWidth="0.8"
+                />
+              ))}
+            </svg>
+            <span className="text-[9px] font-bold tracking-wider">IND</span>
+          </div>
+          <span className="px-6 py-3 font-mono text-[2.1rem] font-bold leading-none tracking-[0.14em] text-zinc-950">
+            BARBICAN
+          </span>
+        </div>
+        <span aria-hidden className="auth-plate-scan pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-violet-500 shadow-[0_0_12px_2px_rgba(139,92,246,0.7)]" />
+      </div>
+      <div className="auth-plate-verdict mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+        <span className="h-1.5 w-1.5 rounded-full bg-lime-300" />
+        Plate read · <span className="text-lime-300">Registered</span>
       </div>
     </div>
   );
 }
 
-/* ── ANPR motif: a plate being read at the gate, cycling every few seconds ── */
-function PlateScanner() {
-  const [index, setIndex] = useState(0);
-  const [reading, setReading] = useState(true);
-  const timers = useRef([]);
-
+/* ── Live local time, as on a gatehouse console ── */
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const cycle = window.setInterval(() => {
-      setReading(true);
-      const settle = window.setTimeout(() => setReading(false), 2600);
-      timers.current.push(settle);
-      const advance = window.setTimeout(() => {
-        setIndex((i) => (i + 1) % SCANNER_PLATES.length);
-      }, 4200);
-      timers.current.push(advance);
-    }, 4600);
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <time className="font-mono text-xs tabular-nums text-zinc-500" dateTime={now.toISOString()}>
+      {now.toLocaleTimeString("en-IN", { hour12: false, timeZoneName: "short" })}
+    </time>
+  );
+}
 
-    const first = window.setTimeout(() => setReading(false), 2600);
-    timers.current.push(first);
-
+/* ── Real reachability of the API, so a sleeping free-tier server is explained ── */
+function ServerStatus() {
+  const [state, setState] = useState("checking");
+  useEffect(() => {
+    let alive = true;
+    apiClient
+      .get("/health")
+      .then(() => alive && setState("online"))
+      .catch(() => alive && setState("offline"));
     return () => {
-      window.clearInterval(cycle);
-      timers.current.forEach(window.clearTimeout);
-      timers.current = [];
+      alive = false;
     };
   }, []);
 
-  const current = SCANNER_PLATES[index];
-  const isVisitor = current.verdict === "VISITOR";
+  const view = {
+    checking: { dot: "bg-amber-400 pulse-dot", text: "Connecting to server…" },
+    online: { dot: "bg-lime-300", text: "Server online" },
+    offline: { dot: "bg-red-500", text: "Server unreachable" },
+  }[state];
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#111113]/70 p-4 backdrop-blur-sm">
-      {/* Camera status strip */}
-      <div className="mb-3.5 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
-          <ScanLine size={12} className="text-violet-400" />
-          ANPR · {current.gate}
-        </span>
-        <span className="flex items-center gap-1.5 text-[10px] font-bold text-lime-400">
-          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-lime-400" />
-          LIVE
-        </span>
-      </div>
-
-      {/* The plate */}
-      <div className="relative overflow-hidden rounded-xl border border-white/15 bg-gradient-to-b from-zinc-100 to-zinc-300 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="grid shrink-0 place-items-center rounded bg-[#1a3fa0] px-1.5 py-2 text-[8px] font-bold leading-none text-white">
-            <span className="mb-0.5 text-[10px]">★</span>
-            IND
-          </div>
-          <span className="font-mono text-[1.35rem] font-black tracking-[0.1em] text-zinc-900 tabular-nums">
-            {current.plate}
-          </span>
-        </div>
-
-        {/* Sweeping scan bar */}
-        {reading && (
-          <div
-            aria-hidden
-            className="auth-scan pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-violet-500 to-transparent shadow-[0_0_14px_3px_rgba(139,92,246,0.65)]"
-          />
-        )}
-      </div>
-
-      {/* Verdict */}
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-[11px] font-medium text-zinc-600">
-          {reading ? "Reading plate…" : "Matched against register"}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide transition-opacity duration-300 ${
-            reading
-              ? "bg-zinc-800 text-zinc-600"
-              : isVisitor
-                ? "bg-amber-400/12 text-amber-300"
-                : "bg-lime-400/12 text-lime-400"
-          }`}
-        >
-          {reading ? "SCANNING" : current.verdict}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function Capability({ value, label }) {
-  return (
-    <div>
-      <p className="text-lg font-black text-zinc-200">{value}</p>
-      <p className="text-[11px] text-zinc-600">{label}</p>
-    </div>
-  );
-}
-
-/* ── Brand atoms ── */
-function Crest({ size = "sm" }) {
-  const box = size === "lg" ? "h-14 w-14" : "h-11 w-11";
-  const icon = size === "lg" ? 24 : 19;
-  return (
-    <div
-      className={`${box} grid shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-xl shadow-violet-900/50`}
-    >
-      <ShieldCheck size={icon} strokeWidth={2.5} className="text-white" />
-    </div>
-  );
-}
-
-function Wordmark({ className = "" }) {
-  return (
-    <span
-      className={`auth-sheen block bg-gradient-to-r from-zinc-100 via-violet-300 to-lime-200 bg-clip-text font-black tracking-[0.02em] text-transparent ${className}`}
-    >
-      BARBICAN
+    <span role="status" className="flex items-center gap-2 font-mono text-[11px] text-zinc-500">
+      <span className={`h-1.5 w-1.5 rounded-full ${view.dot}`} />
+      {view.text}
     </span>
   );
 }
 
-/* Label sits outside the input so the icon and the reveal toggle can live inside it. */
-function AuthField({ id, label, icon, trailing, className = "", ...props }) {
+/* ── Brand mark: a crenellated gatehouse with an open arch ── */
+function Mark() {
   return (
-    <div className="grid gap-1.5">
-      <label
-        htmlFor={id}
-        className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
-      >
+    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" aria-hidden>
+      <path
+        d="M3 21V5h3v2.5h2V5h3v2.5h2V5h3v2.5h2V5h3v16h-6.5v-5a2.5 2.5 0 0 0-5 0v5Z"
+        fill="#a3e635"
+      />
+    </svg>
+  );
+}
+
+function Field({ id, label, trailing, ...props }) {
+  return (
+    <div className="grid gap-2">
+      <label htmlFor={id} className="text-[13px] font-medium text-zinc-400">
         {label}
       </label>
-      <div className="group relative flex items-center">
-        <span className="pointer-events-none absolute left-3.5 text-zinc-600 transition-colors group-focus-within:text-violet-400">
-          {icon}
-        </span>
+      <div className="relative flex items-center">
         <input
           id={id}
-          className={`w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-violet-500/60 focus:bg-white/8 focus:ring-2 focus:ring-violet-500/20 ${
-            trailing ? "pr-12" : "pr-3.5"
-          } ${className}`}
+          className={`h-11 w-full rounded-lg border border-white/10 bg-[#111113] px-3.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20 ${
+            trailing ? "pr-12" : ""
+          }`}
           {...props}
         />
-        {trailing && <span className="absolute right-2.5">{trailing}</span>}
+        {trailing && <span className="absolute right-1.5">{trailing}</span>}
       </div>
     </div>
   );

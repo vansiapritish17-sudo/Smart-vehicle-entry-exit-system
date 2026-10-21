@@ -1,5 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap");
 @import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 
 /* ── Design Tokens ── */
 :root {
@@ -119,78 +123,33 @@ button, input, select, textarea {
 
 /* ══════════════════════════════════════════════════════════
    Auth screen — Barbican
-   Motifs: a road receding into perspective, and an ANPR camera
-   sweeping a number plate. Everything here is CSS-only.
+   Motifs: a registration plate read once by the gate camera,
+   and a boom-barrier stripe. Motion is one-shot, never looping.
    ══════════════════════════════════════════════════════════ */
 
-/* Receding road grid on the brand panel */
-.auth-grid {
-  background-image:
-    linear-gradient(to right,  rgba(139, 92, 246, 0.32) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(139, 92, 246, 0.32) 1px, transparent 1px);
-  background-size: 54px 54px;
-  transform: perspective(620px) rotateX(54deg);
-  transform-origin: bottom center;
-  animation: auth-grid-move 5s linear infinite;
-  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 88%);
-          mask-image: linear-gradient(to top, #000 0%, transparent 88%);
-}
-@keyframes auth-grid-move {
-  to { background-position: 0 54px; }
+/* Boom-barrier stripe above the capability list */
+.auth-hazard {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(163, 230, 53, 0.85) 0 10px,
+    transparent 10px 20px
+  );
+  opacity: 0.55;
 }
 
-/* Drifting colour orbs */
-.auth-orb {
-  animation: auth-float 14s ease-in-out infinite;
+/* One camera sweep down the plate, then the verdict appears */
+.auth-plate-scan {
+  opacity: 0;
+  animation: auth-plate-scan 1.4s cubic-bezier(0.45, 0, 0.55, 1) 0.5s both;
 }
-.auth-orb-slow {
-  animation: auth-float 20s ease-in-out infinite reverse;
+@keyframes auth-plate-scan {
+  0%   { transform: translateY(0);    opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(58px); opacity: 0; }
 }
-@keyframes auth-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(28px, -22px) scale(1.06); }
-  66%      { transform: translate(-20px, 18px) scale(0.96); }
-}
-
-/* ANPR scan bar sweeping down the plate */
-.auth-scan {
-  animation: auth-scan 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-@keyframes auth-scan {
-  0%        { transform: translateY(-6px);  opacity: 0; }
-  12%       { opacity: 1; }
-  88%       { opacity: 1; }
-  100%      { transform: translateY(64px); opacity: 0; }
-}
-
-/* Wordmark sheen */
-.auth-sheen {
-  background-size: 220% 100%;
-  animation: auth-sheen 7s ease-in-out infinite;
-}
-@keyframes auth-sheen {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
-}
-
-/* Gradient hairline that breathes around the form card */
-.auth-card-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(140deg,
-    rgba(163, 230, 53, 0.85),
-    rgba(139, 92, 246, 0.8) 42%,
-    rgba(255, 255, 255, 0.06) 72%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  pointer-events: none;
-  animation: auth-sheen 7s ease-in-out infinite;
-  background-size: 220% 220%;
+.auth-plate-verdict {
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 1.9s both;
 }
 
 /* Staggered entrance */
@@ -200,12 +159,9 @@ button, input, select, textarea {
 .auth-delay-1 { animation-delay: 0.06s; }
 .auth-delay-2 { animation-delay: 0.14s; }
 .auth-delay-3 { animation-delay: 0.22s; }
-.auth-delay-4 { animation-delay: 0.30s; }
 
 /* Respect the OS "reduce motion" setting — the page stays legible, just still. */
 @media (prefers-reduced-motion: reduce) {
-  .auth-grid, .auth-orb, .auth-orb-slow, .auth-scan,
-  .auth-sheen, .auth-card-glow::before, .auth-enter, .pulse-dot {
-    animation: none !important;
-  }
+  .auth-plate-scan { animation: none !important; opacity: 0; }
+  .auth-plate-verdict, .auth-enter, .pulse-dot { animation: none !important; }
 }
