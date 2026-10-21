@@ -11,7 +11,8 @@ import { getIdToken, logout } from "./authService";
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   headers: { "Content-Type": "application/json" },
-  timeout: 15000,
+  // Generous: a free-tier host can take up to a minute to wake from sleep.
+  timeout: 60000,
 });
 
 // Attach the Firebase ID token to every request. The backend verifies its

@@ -1,0 +1,9 @@
+# Never bake credentials into the image — they are injected as environment variables.
+.env
+secrets/
+**/serviceAccountKey.json
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.DS_Store

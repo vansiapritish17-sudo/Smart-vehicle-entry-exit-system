@@ -1,0 +1,21 @@
+# Render Blueprint for the Spring Boot API (New → Blueprint → select this repo).
+# The frontend is deployed to Vercel; see README "Deploying".
+services:
+  - type: web
+    name: svems-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Base64 of the Firebase service account JSON — copy the value from backend/.env.
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
+      # The Vercel site's origin, e.g. https://smart-vehicle-entry-exit-system.vercel.app
+      # (comma-separate several; patterns like https://*.vercel.app also work).
+      - key: SVEMS_CORS_ORIGINS
+        sync: false
+      - key: SVEMS_TIMEZONE
+        value: Asia/Kolkata

@@ -83,6 +83,23 @@ the administrator.
 With the server running: `npm run test:e2e` (Playwright). It signs in as both roles and drives
 a test vehicle (`TS09ZZ9901`) through registration, entry, exit and every refusal path.
 
+## Deploying (Render + Vercel)
+
+The API runs on Render (Docker), the React app on Vercel.
+
+1. **API on Render** — *New → Blueprint*, select this repo (it reads `render.yaml`). Set:
+   - `FIREBASE_SERVICE_ACCOUNT_BASE64` — the value from your local `backend/.env`
+   - `SVEMS_CORS_ORIGINS` — your Vercel URL, e.g. `https://your-app.vercel.app`
+
+   Check `https://<service>.onrender.com/api/health` returns `"status" : "UP"`.
+2. **Frontend on Vercel** — *Add New → Project*, import this repo (Vite is auto-detected).
+   Add the environment variable `VITE_API_BASE_URL = https://<service>.onrender.com/api`
+   and deploy. `vercel.json` makes deep links such as `/dashboard` work.
+3. **Firebase Console** → Authentication → Settings → *Authorized domains* → add the
+   Vercel domain.
+
+Render's free plan sleeps after ~15 minutes idle; the first request then takes 30–60 s.
+
 ## Configuration
 
 | Variable | Default | Purpose |
