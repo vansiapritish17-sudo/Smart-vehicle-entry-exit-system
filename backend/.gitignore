@@ -1,0 +1,18 @@
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Firebase credentials — NEVER commit these
+# The service account is loaded from an env var (see .env.example), never the classpath.
+.env
+secrets/
+**/serviceAccountKey.json
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar

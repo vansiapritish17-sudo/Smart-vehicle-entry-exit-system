@@ -1,0 +1,211 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+/* ── Design Tokens ── */
+:root {
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-2: #1a1a1e;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --violet: #8b5cf6;
+  --violet-dim: rgba(139, 92, 246, 0.15);
+  --lime: #a3e635;
+  --lime-dim: rgba(163, 230, 53, 0.15);
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+/* ── Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--violet-dim);
+  color: #c4b5fd;
+}
+
+/* ── Table wrap ── */
+.table-wrap {
+  overflow-x: auto;
+}
+
+/* ── Micro-animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease both;
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Glass card utility ── */
+.glass-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--border-strong);
+}
+
+/* ── Nav pill active ── */
+.nav-pill-active {
+  background: #ffffff;
+  color: #09090b;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+.nav-pill {
+  color: #71717a;
+  border-radius: 9999px;
+  transition: background 0.15s, color 0.15s;
+  font-weight: 600;
+}
+.nav-pill:hover {
+  background: rgba(255,255,255,0.07);
+  color: #e4e4e7;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Auth screen — Barbican
+   Motifs: a road receding into perspective, and an ANPR camera
+   sweeping a number plate. Everything here is CSS-only.
+   ══════════════════════════════════════════════════════════ */
+
+/* Receding road grid on the brand panel */
+.auth-grid {
+  background-image:
+    linear-gradient(to right,  rgba(139, 92, 246, 0.32) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(139, 92, 246, 0.32) 1px, transparent 1px);
+  background-size: 54px 54px;
+  transform: perspective(620px) rotateX(54deg);
+  transform-origin: bottom center;
+  animation: auth-grid-move 5s linear infinite;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 88%);
+          mask-image: linear-gradient(to top, #000 0%, transparent 88%);
+}
+@keyframes auth-grid-move {
+  to { background-position: 0 54px; }
+}
+
+/* Drifting colour orbs */
+.auth-orb {
+  animation: auth-float 14s ease-in-out infinite;
+}
+.auth-orb-slow {
+  animation: auth-float 20s ease-in-out infinite reverse;
+}
+@keyframes auth-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(28px, -22px) scale(1.06); }
+  66%      { transform: translate(-20px, 18px) scale(0.96); }
+}
+
+/* ANPR scan bar sweeping down the plate */
+.auth-scan {
+  animation: auth-scan 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes auth-scan {
+  0%        { transform: translateY(-6px);  opacity: 0; }
+  12%       { opacity: 1; }
+  88%       { opacity: 1; }
+  100%      { transform: translateY(64px); opacity: 0; }
+}
+
+/* Wordmark sheen */
+.auth-sheen {
+  background-size: 220% 100%;
+  animation: auth-sheen 7s ease-in-out infinite;
+}
+@keyframes auth-sheen {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Gradient hairline that breathes around the form card */
+.auth-card-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg,
+    rgba(163, 230, 53, 0.85),
+    rgba(139, 92, 246, 0.8) 42%,
+    rgba(255, 255, 255, 0.06) 72%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  animation: auth-sheen 7s ease-in-out infinite;
+  background-size: 220% 220%;
+}
+
+/* Staggered entrance */
+.auth-enter {
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.auth-delay-1 { animation-delay: 0.06s; }
+.auth-delay-2 { animation-delay: 0.14s; }
+.auth-delay-3 { animation-delay: 0.22s; }
+.auth-delay-4 { animation-delay: 0.30s; }
+
+/* Respect the OS "reduce motion" setting — the page stays legible, just still. */
+@media (prefers-reduced-motion: reduce) {
+  .auth-grid, .auth-orb, .auth-orb-slow, .auth-scan,
+  .auth-sheen, .auth-card-glow::before, .auth-enter, .pulse-dot {
+    animation: none !important;
+  }
+}

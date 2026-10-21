@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules/
+dist/
+backend/target/
+
+# Secrets — Firebase service account and env files. NEVER commit these.
+.env
+.env.*
+!.env.example
+backend/secrets/
+**/serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Logs and test artifacts
+*.log
+npm-debug.log*
+test-results/
+playwright-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+
+# Vercel
+.vercel

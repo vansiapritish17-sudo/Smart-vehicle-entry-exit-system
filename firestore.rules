@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// SVEMS Firestore rules.
+//
+// All client reads require a signed-in Firebase Auth user. The frontend never
+// writes directly — every mutation goes through the Spring Boot API, which uses
+// the Admin SDK (Admin SDK traffic bypasses these rules entirely), so `write` is
+// closed everywhere below. That keeps validation, capacity checks and the audit
+// trail in one place instead of being re-implemented in rules.
+//
+// Roles arrive as a custom claim (`request.auth.token.role`) set by the backend
+// when it provisions the account, so they are signed and cannot be spoofed.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A deactivated user is disabled in Firebase Auth and can no longer obtain a
+    // token, so a present `request.auth` already implies an active account.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == 'Administrator';
+    }
+
+    // vehicles — real-time listeners for any signed-in operator
+    match /vehicles/{docId} {
+      allow read: if signedIn();
+      allow write: if false;  // writes via the Java Admin SDK only
+    }
+
+    // movements — the live entry/exit feed
+    match /movements/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // alerts — capacity and overstay notifications
+    match /alerts/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // configuration — capacity thresholds and gate list
+    match /configuration/{docId} {
+      allow read: if signedIn();
+      allow write: if false;  // saved through PUT /api/configuration (admin only)
+    }
+
+    // users — profiles are served by GET /api/users, which is administrator-only.
+    // Reads are limited to admins here as defence in depth for any direct access.
+    match /users/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Anything not matched above is denied, including collections added later.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
