@@ -2,7 +2,7 @@ package com.svems.service;
 
 import com.svems.config.ApiException;
 import com.svems.model.Vehicle;
-import com.svems.repository.FirestoreRepository;
+import com.svems.repository.DocumentStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class VehicleService {
 
-    private static final String COLLECTION = "vehicles";
+    static final String COLLECTION = "vehicles";
 
     /** Indian plates: standard state series (MH12AB1234, DL3CAB1234) and Bharat series (22BH1234AB). */
     private static final Pattern REG_NO = Pattern.compile(
@@ -23,7 +23,7 @@ public class VehicleService {
     private static final Set<String> TYPES = Set.of("Car", "Bike", "Scooter", "SUV", "Van", "Truck", "Bus");
     private static final Set<String> REG_STATUSES = Set.of("ACTIVE", "INACTIVE");
 
-    private final FirestoreRepository repo;
+    private final DocumentStore repo;
 
     /** Canonical form used for storage and lookups: upper case, no spaces or dashes. */
     public static String normalizeRegNo(String regNo) {
@@ -32,18 +32,18 @@ public class VehicleService {
 
     public List<Vehicle> findAll() throws Exception {
         return repo.findAll(COLLECTION).stream()
-                .map(this::toVehicle)
+                .map(VehicleService::toVehicle)
                 .sorted(Comparator.comparing(Vehicle::getRegNo, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
     }
 
     public Optional<Vehicle> findById(String id) throws Exception {
-        return repo.findById(COLLECTION, id).map(this::toVehicle);
+        return repo.findById(COLLECTION, id).map(VehicleService::toVehicle);
     }
 
     public Optional<Vehicle> findByRegNo(String regNo) throws Exception {
         return repo.findWhere(COLLECTION, "regNo", normalizeRegNo(regNo))
-                .stream().findFirst().map(this::toVehicle);
+                .stream().findFirst().map(VehicleService::toVehicle);
     }
 
     public long countInside() throws Exception {
@@ -145,7 +145,8 @@ public class VehicleService {
         return s == null ? "" : s.trim();
     }
 
-    private Vehicle toVehicle(Map<String, Object> m) {
+    /** Static so the movement flow can map vehicles it reads inside a transaction. */
+    static Vehicle toVehicle(Map<String, Object> m) {
         return Vehicle.builder()
                 .id((String) m.get("id"))
                 .regNo((String) m.get("regNo"))

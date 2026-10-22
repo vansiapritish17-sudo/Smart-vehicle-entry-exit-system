@@ -1,5 +1,7 @@
 # Barbican — Smart Vehicle Entry/Exit Monitoring System (SVEMS)
 
+[![CI](https://github.com/vansiapritish17-sudo/Smart-vehicle-entry-exit-system/actions/workflows/ci.yml/badge.svg)](https://github.com/vansiapritish17-sudo/Smart-vehicle-entry-exit-system/actions/workflows/ci.yml)
+
 Gate access control for a parking facility or campus: register vehicles, record entries and
 exits at configured gates, enforce capacity, raise alerts on refused movements, and monitor
 occupancy live.
@@ -44,6 +46,13 @@ An exit for a vehicle not recorded inside is refused → `INVALID_EXIT` (MEDIUM)
 When occupancy rises across the configured threshold a `CAPACITY_WARNING` alert is raised once.
 Movements are accepted only at gates whose status is ACTIVE. Stay duration is calculated on exit.
 
+Each entry or exit is **one Firestore transaction**: the checks above and the writes they lead to
+(the movement record, the vehicle's inside/outside status, and the entry an exit closes) commit
+together or not at all. A failure part-way can never leave a movement without its status change,
+and Firestore re-validates the reads at commit, so the rules hold across several server instances.
+An exit finds the entry it closes by vehicle id, so correcting a plate while the vehicle is inside
+does not lose the visit.
+
 ## Running it
 
 **Prerequisites:** Node.js 20+, Java 17+ (Maven is not needed — the project includes the
@@ -77,6 +86,19 @@ On an empty database the backend creates two accounts and a default configuratio
 Override these with `SVEMS_ADMIN_PASSWORD` / `SVEMS_OPERATOR_PASSWORD`, and change them from
 the Profile page after signing in. New users get a random temporary password shown once to
 the administrator.
+
+### Tests
+
+```bash
+cd backend && ./mvnw test      # Windows: mvnw.cmd test
+```
+
+42 tests cover every gate rule above, plate and contact validation, gate configuration, stay
+durations (with a controllable clock), the corrected-plate case, clearing history without losing open
+visits, and atomicity: a transaction made to fail at commit must leave no movement, status change
+or alert behind. They run the real services against an in-memory store that enforces Firestore's
+transaction rules, so they need no Firebase project. CI runs them, and a production build of the
+frontend, on every push.
 
 ### End-to-end test
 

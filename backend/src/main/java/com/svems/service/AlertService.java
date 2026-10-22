@@ -2,7 +2,7 @@ package com.svems.service;
 
 import com.svems.config.ApiException;
 import com.svems.model.Alert;
-import com.svems.repository.FirestoreRepository;
+import com.svems.repository.DocumentStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +18,7 @@ public class AlertService {
     private static final String COLLECTION = "alerts";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    private final FirestoreRepository repo;
+    private final DocumentStore repo;
 
     public List<Alert> findAll() throws Exception {
         return repo.findAll(COLLECTION).stream()

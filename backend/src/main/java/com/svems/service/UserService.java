@@ -6,7 +6,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
 import com.svems.model.User;
-import com.svems.repository.FirestoreRepository;
+import com.svems.repository.DocumentStore;
 import com.svems.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -36,7 +36,7 @@ public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private static final String COLLECTION = "users";
 
-    private final FirestoreRepository repo;
+    private final DocumentStore repo;
     private final FirebaseAuth firebaseAuth;
 
     /** Login handles are turned into addresses in this domain; it never receives mail. */

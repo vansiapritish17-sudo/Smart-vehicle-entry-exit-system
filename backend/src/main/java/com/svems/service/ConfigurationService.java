@@ -2,7 +2,7 @@ package com.svems.service;
 
 import com.svems.config.ApiException;
 import com.svems.model.Configuration;
-import com.svems.repository.FirestoreRepository;
+import com.svems.repository.DocumentStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ public class ConfigurationService {
     private static final String DOC_ID = "default";
     private static final Set<String> GATE_STATUSES = Set.of("ACTIVE", "MAINTENANCE", "INACTIVE");
 
-    private final FirestoreRepository repo;
+    private final DocumentStore repo;
 
     public Configuration get() throws Exception {
         Optional<Map<String, Object>> doc = repo.findById(COLLECTION, DOC_ID);
