@@ -1,5 +1,5 @@
 # API-only image for hosts such as Render. The React app is deployed separately (Vercel),
-# so ../dist is not in the build context and the jar ships without static files.
+# so ../frontend/dist is not in the build context and the jar ships without static files.
 
 # ── Build ──
 FROM maven:3.9.9-eclipse-temurin-17 AS build

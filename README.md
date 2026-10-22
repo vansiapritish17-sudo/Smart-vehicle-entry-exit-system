@@ -61,6 +61,7 @@ Maven wrapper). Firebase credentials go in `backend/.env` (see `backend/.env.exa
 ### Production (single server)
 
 ```bash
+cd frontend
 npm install
 npm run package     # builds the React app and bundles it into the Spring Boot jar
 npm start           # serves UI + API on http://localhost:8081
@@ -69,8 +70,8 @@ npm start           # serves UI + API on http://localhost:8081
 ### Development (hot reload)
 
 ```bash
-cd backend && ./mvnw spring-boot:run      # API on :8081   (Windows: mvnw.cmd spring-boot:run)
-npm run dev                               # UI on :5173, /api proxied to :8081
+cd backend  && ./mvnw spring-boot:run     # API on :8081   (Windows: mvnw.cmd spring-boot:run)
+cd frontend && npm install && npm run dev  # UI on :5173, /api proxied to :8081
 ```
 
 ### First sign-in
@@ -102,7 +103,7 @@ frontend, on every push.
 
 ### End-to-end test
 
-With the server running: `npm run test:e2e` (Playwright). It signs in as both roles and drives
+With the server running, from `frontend/`: `npm run test:e2e` (Playwright). It signs in as both roles and drives
 a test vehicle (`TS09ZZ9901`) through registration, entry, exit and every refusal path.
 
 ## Deploying (Render + Vercel)
@@ -114,11 +115,12 @@ The API runs on Render (Docker), the React app on Vercel.
    - `SVEMS_CORS_ORIGINS` — your Vercel URL, e.g. `https://your-app.vercel.app`
 
    Check `https://<service>.onrender.com/api/health` returns `"status" : "UP"`.
-2. **Frontend on Vercel** — *Add New → Project*, import this repo (Vite is auto-detected).
-   Add the environment variable `VITE_API_BASE_URL = https://<service>.onrender.com/api`
+2. **Frontend on Vercel** — *Add New → Project*, import this repo and set **Root Directory** to
+   `frontend` (Vite is then auto-detected). Add the environment variable `VITE_API_BASE_URL = https://<service>.onrender.com/api`
    and deploy. `vercel.json` makes deep links such as `/dashboard` work.
 3. **Firebase Console** → Authentication → Settings → *Authorized domains* → add the
    Vercel domain.
+4. **Firestore rules** — from `firebase/`: `firebase deploy --only firestore`.
 
 Render's free plan sleeps after ~15 minutes idle; the first request then takes 30–60 s.
 
@@ -136,15 +138,25 @@ Render's free plan sleeps after ~15 minutes idle; the first request then takes 3
 ## Project layout
 
 ```
-src/                     React app
-  pages/                 one file per screen
-  state/AppContext.jsx   session, Firestore listeners, API actions
-  services/              API client, Firebase auth, derived statistics
-backend/src/main/java/com/svems/
-  controller/            REST endpoints
-  service/               business rules and validation
-  security/              Firebase token verification and role checks
-  config/                Firebase, CORS, SPA hosting, error handling, first-run seeding
-firestore.rules          database security rules
-tests/smoke.mjs          end-to-end test
+backend/                         Spring Boot API (Java 17, Maven wrapper)
+  src/main/java/com/svems/
+    controller/                  REST endpoints
+    service/                     business rules, validation, entry/exit transactions
+    repository/                  DocumentStore interface and its Firestore implementation
+    security/                    Firebase token verification and role checks
+    config/                      Firebase, CORS, SPA hosting, clock, error handling, seeding
+  src/test/java/com/svems/       unit tests and the in-memory store they run against
+  Dockerfile                     API image used by Render
+frontend/                        React app (Vite, Tailwind)
+  src/
+    pages/                       one file per screen
+    components/                  shared UI, layout and dashboard widgets
+    state/                       session, Firestore listeners, API actions, theme
+    services/                    API client, Firebase auth, derived statistics, CSV export
+  tests/smoke.mjs                end-to-end test (Playwright)
+  scripts/package-backend.mjs    builds the single-server jar
+  vercel.json                    Vercel config (deep links)
+firebase/                        Firestore security rules and indexes (Firebase CLI)
+render.yaml                      Render blueprint for the API
+.github/workflows/ci.yml         CI: backend tests and frontend build
 ```

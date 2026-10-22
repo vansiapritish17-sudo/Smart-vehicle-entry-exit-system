@@ -58,9 +58,9 @@
 
   <build>
     <plugins>
-      <!-- Bundle the built React app (`npm run build` → ../dist) into the jar as static
+      <!-- Bundle the built React app (`npm run build` in frontend/ → ../frontend/dist) into the jar as static
            content, so one `java -jar` serves both the UI and the API. Skipped silently
-           when ../dist does not exist. -->
+           when ../frontend/dist does not exist. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
@@ -73,7 +73,7 @@
               <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/../dist</directory>
+                  <directory>${project.basedir}/../frontend/dist</directory>
                 </resource>
               </resources>
             </configuration>

@@ -4,7 +4,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "package": "vite build && node scripts/package-backend.mjs",
-    "start": "cd backend && java -jar target/svems-backend-1.0.0.jar",
+    "start": "cd ../backend && java -jar target/svems-backend-1.0.0.jar",
     "test:e2e": "node tests/smoke.mjs"
   },
   "type": "module",
