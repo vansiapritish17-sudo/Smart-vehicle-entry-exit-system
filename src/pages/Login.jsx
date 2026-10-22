@@ -183,8 +183,75 @@ function BrandPanel() {
   );
 }
 
-/* ── A high-security registration plate, read once by the gate camera on load ── */
+/* ── A high-security registration plate, read once by the gate camera on load ──
+   Each visit it arrives carrying a random registration. The camera reads it, the
+   verdict lands, then the characters decode into BARBICAN and the two spare
+   slots fold away. One pass only, like the rest of this screen. */
+const PLATE_TARGET = " BARBICAN "; // padded to the 10 slots of an Indian registration
+const PLATE_STATES = ["MH", "KA", "DL", "TN", "GJ", "RJ", "UP", "WB", "KL", "HR", "PB", "TS", "AP", "MP"];
+const PLATE_SERIES = "ABCDEFGHJKLMNPRSTUVWXYZ"; // I and O are not issued
+const PLATE_GLYPHS = "ABCDEFGHJKLMNPRSTUVWXYZ0123456789";
+
+const pickFrom = (chars) => chars[Math.floor(Math.random() * chars.length)];
+const digits = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join("");
+
+function randomPlate() {
+  const district = String(1 + Math.floor(Math.random() * 50)).padStart(2, "0");
+  const number = String(1 + Math.floor(Math.random() * 9999)).padStart(4, "0");
+  return pickFrom(PLATE_STATES) + district + pickFrom(PLATE_SERIES) + pickFrom(PLATE_SERIES) + number;
+}
+
+// Timeline in ms from mount; the scan sweep (CSS) runs 500–1900 and the verdict lands at 1900.
+const DECODE_START = 2200;
+const DECODE_STAGGER = 70; // left to right
+const DECODE_SCRAMBLE = 280; // how long each slot flickers before it locks
+const GLYPH_INTERVAL = 50; // ~20 glyph changes a second reads as flicker, not noise
+
+function useDecodedPlate() {
+  const [plate] = useState(randomPlate);
+  const [chars, setChars] = useState(() => plate.split(""));
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setChars(PLATE_TARGET.split(""));
+      setSettled(true);
+      return;
+    }
+    const startedAt = performance.now();
+    let lastGlyph = 0;
+    let frame;
+    const tick = (now) => {
+      const t = now - startedAt;
+      if (t >= DECODE_START && now - lastGlyph >= GLYPH_INTERVAL) {
+        lastGlyph = now;
+        let locked = 0;
+        setChars(
+          plate.split("").map((original, i) => {
+            const begins = DECODE_START + i * DECODE_STAGGER;
+            if (t >= begins + DECODE_SCRAMBLE) {
+              locked += 1;
+              return PLATE_TARGET[i];
+            }
+            return t >= begins ? pickFrom(PLATE_GLYPHS) : original;
+          })
+        );
+        if (locked === plate.length) {
+          setSettled(true);
+          return;
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [plate]);
+
+  return { chars, settled };
+}
+
 function Plate() {
+  const { chars, settled } = useDecodedPlate();
   return (
     <div className="inline-block">
       <div className="relative overflow-hidden rounded-[10px] bg-[#f4f4f5] p-[3px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]">
@@ -204,8 +271,25 @@ function Plate() {
             </svg>
             <span className="text-[9px] font-bold tracking-wider">IND</span>
           </div>
-          <span className="px-6 py-3 font-mono text-[2.1rem] font-bold leading-none tracking-[0.14em] text-[#09090b]">
-            BARBICAN
+          <span
+            role="img"
+            aria-label="Barbican"
+            className="flex px-6 py-3 font-mono text-[2.1rem] font-bold leading-none text-[#09090b]"
+          >
+            {chars.map((char, i) => {
+              // The padding slots collapse once BARBICAN has locked in.
+              const folded = settled && PLATE_TARGET[i] === " ";
+              return (
+                <span
+                  key={i}
+                  aria-hidden
+                  className="inline-block overflow-hidden text-center transition-[width,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  style={{ width: folded ? 0 : "0.74em", opacity: folded ? 0 : 1 }}
+                >
+                  {char === " " ? " " : char}
+                </span>
+              );
+            })}
           </span>
         </div>
         <span aria-hidden className="auth-plate-scan pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-violet-500 shadow-[0_0_12px_2px_rgba(139,92,246,0.7)]" />
