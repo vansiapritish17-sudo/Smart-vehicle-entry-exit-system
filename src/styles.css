@@ -42,6 +42,16 @@ button, input, select, textarea {
   font: inherit;
 }
 
+/* Native dropdown lists don't inherit the translucent select background,
+   so give options an explicit dark surface to keep light text readable. */
+select option {
+  background-color: var(--surface-2);
+  color: var(--text-primary);
+}
+select option:disabled {
+  color: var(--text-muted);
+}
+
 /* ── Custom Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
