@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Gate entry/exit workflow. Every attempt is validated here, and every refusal raises
@@ -117,7 +118,14 @@ public class MovementService {
             String now = LocalDateTime.now().format(FMT);
 
             // The open ENTRY this exit closes: same vehicle, no exit time yet, most recent first.
-            Optional<Movement> lastEntry = repo.findWhere(COLLECTION, "regNo", normalized).stream()
+            // Matched on the vehicle's id, not its plate — the plate can be corrected while
+            // the vehicle is inside, and the entry keeps the plate it was recorded under.
+            // Records written before vehicleId existed are still found by plate.
+            Stream<Map<String, Object>> candidates = Stream.concat(
+                    repo.findWhere(COLLECTION, "vehicleId", vehicle.getId()).stream(),
+                    repo.findWhere(COLLECTION, "regNo", normalized).stream()
+                            .filter(m -> m.get("vehicleId") == null));
+            Optional<Movement> lastEntry = candidates
                     .map(this::toMovement)
                     .filter(m -> "ENTRY".equals(m.getType()) && (m.getExitTime() == null || m.getExitTime().isBlank()))
                     .max(Comparator.comparing(Movement::getEntryTime, Comparator.nullsFirst(Comparator.naturalOrder())));
