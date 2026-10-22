@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
-import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import { Input, Select } from "../components/common/Field";
-import Table from "../components/common/Table";
+import PageHeader, { SectionTitle } from "../components/common/PageHeader";
 import { useApp } from "../state/AppContext";
+
+const GATE_STATUS = {
+  ACTIVE: { dot: "bg-lime-400", label: "Accepting entries and exits" },
+  MAINTENANCE: { dot: "bg-amber-400", label: "Closed for maintenance" },
+  INACTIVE: { dot: "bg-zinc-500", label: "Closed" },
+};
 
 export default function Configuration() {
   const { configuration, vehicles, saveConfiguration } = useApp();
@@ -31,6 +36,10 @@ export default function Configuration() {
   const removeGate = (id) => edit({ gates: form.gates.filter((g) => g.id !== id) });
 
   const inside = vehicles.filter((v) => v.currentStatus === "INSIDE").length;
+  const capacity = Number(form.maximumCapacity) || 0;
+  const threshold = Number(form.alertThreshold) || 0;
+  const alertAt = Math.ceil((capacity * threshold) / 100);
+  const insidePercent = capacity ? Math.min(100, (inside / capacity) * 100) : 0;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -51,29 +60,30 @@ export default function Configuration() {
 
   return (
     <form onSubmit={submit} className="grid gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-zinc-100">System Configuration</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Manage capacity, alert thresholds, and gates
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {dirty && (
-            <Button type="button" variant="secondary" onClick={discard}>Discard</Button>
-          )}
-          <Button type="submit" variant="violet" disabled={saving || !dirty}>
-            <Save size={15} /> Save Configuration
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Administration"
+        title="Settings"
+        description="Facility capacity, when to raise an alert, and which gates are open."
+        actions={
+          <>
+            {dirty && <span className="mr-1 text-xs text-amber-300">Unsaved changes</span>}
+            {dirty && (
+              <Button type="button" variant="secondary" onClick={discard}>
+                Discard
+              </Button>
+            )}
+            <Button type="submit" disabled={saving || !dirty}>
+              <Save size={15} /> {saving ? "Saving…" : "Save settings"}
+            </Button>
+          </>
+        }
+      />
 
-      {/* General settings */}
-      <div className="glass-card">
-        <h2 className="mb-5 font-bold text-zinc-100">General settings</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+      <section className="glass-card">
+        <SectionTitle className="mb-5">Capacity</SectionTitle>
+        <div className="grid gap-6 md:grid-cols-[1fr_1fr_1.3fr]">
           <Input
-            label="Maximum Capacity"
+            label="Maximum capacity"
             type="number"
             min={1}
             max={100000}
@@ -82,7 +92,7 @@ export default function Configuration() {
             onChange={(e) => edit({ maximumCapacity: e.target.value })}
           />
           <Input
-            label="Capacity Alert Threshold (%)"
+            label="Alert threshold (%)"
             type="number"
             min={1}
             max={100}
@@ -90,88 +100,72 @@ export default function Configuration() {
             value={form.alertThreshold}
             onChange={(e) => edit({ alertThreshold: e.target.value })}
           />
-          <div className="grid content-end text-xs text-zinc-500">
-            <p>Currently inside: <b className="text-zinc-300">{inside}</b></p>
-            <p className="mt-1">
-              A capacity alert is raised when occupancy reaches{" "}
-              <b className="text-zinc-300">
-                {Math.ceil((Number(form.maximumCapacity) || 0) * (Number(form.alertThreshold) || 0) / 100)}
-              </b>{" "}
-              vehicles. Entries are refused at full capacity.
+          {/* Live preview of what these numbers mean */}
+          <div className="grid content-end gap-2">
+            <div className="relative h-2 rounded-full bg-white/[0.07]">
+              <div className="h-full rounded-full bg-lime-300" style={{ width: `${insidePercent}%` }} />
+              <span className="absolute -top-1 h-4 w-px bg-amber-400" style={{ left: `${Math.min(100, threshold)}%` }} />
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-500">
+              <span className="text-zinc-200">{inside}</span> inside now. A warning is raised at{" "}
+              <span className="text-amber-300">{alertAt}</span> vehicles; entries are refused at{" "}
+              <span className="text-zinc-200">{capacity}</span>.
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Gate configuration */}
-      <div className="glass-card">
+      <section className="glass-card">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-bold text-zinc-100">Gate configuration</h2>
-          <Button type="button" variant="secondary" onClick={addGate}>
-            <Plus size={14} /> Add Gate
+          <SectionTitle>Gates · {form.gates.length}</SectionTitle>
+          <Button type="button" size="sm" variant="secondary" onClick={addGate}>
+            <Plus size={14} /> Add gate
           </Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {form.gates.map((gate) => (
-            <div
-              key={gate.id}
-              className="grid gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-4"
-            >
-              <Input
-                label="Gate Name"
-                value={gate.name}
-                required
-                maxLength={40}
-                onChange={(e) => updateGate(gate.id, { name: e.target.value })}
-              />
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Select
-                    label="Gate Status"
-                    value={gate.status}
-                    onChange={(e) => updateGate(gate.id, { status: e.target.value })}
+          {form.gates.map((gate) => {
+            const status = GATE_STATUS[gate.status] ?? GATE_STATUS.INACTIVE;
+            return (
+              <div key={gate.id} className="grid gap-3 rounded-xl border border-white/[0.08] bg-[var(--bg)] p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                    {status.label}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove ${gate.name || "gate"}`}
+                    title={form.gates.length <= 1 ? "At least one gate is required" : "Remove gate"}
+                    disabled={form.gates.length <= 1}
+                    onClick={() => removeGate(gate.id)}
+                    className="w-8 px-0 hover:!bg-red-500/10 hover:!text-red-400"
                   >
-                    <option>ACTIVE</option>
-                    <option>MAINTENANCE</option>
-                    <option>INACTIVE</option>
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    label="Name"
+                    value={gate.name}
+                    required
+                    maxLength={40}
+                    onChange={(e) => updateGate(gate.id, { name: e.target.value })}
+                  />
+                  <Select label="Status" value={gate.status} onChange={(e) => updateGate(gate.id, { status: e.target.value })}>
+                    <option value="ACTIVE">Active</option>
+                    <option value="MAINTENANCE">Maintenance</option>
+                    <option value="INACTIVE">Inactive</option>
                   </Select>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  aria-label={`Remove ${gate.name || "gate"}`}
-                  disabled={form.gates.length <= 1}
-                  onClick={() => removeGate(gate.id)}
-                  className="hover:text-red-400"
-                >
-                  <Trash2 size={14} />
-                </Button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <p className="mt-4 text-xs text-zinc-600">
-          Only ACTIVE gates can record entries and exits. At least one gate must be active.
+        <p className="mt-4 text-xs text-zinc-500">
+          Only active gates can record entries and exits. At least one gate must stay active.
         </p>
-      </div>
-
-      {/* Saved gates */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-zinc-500">
-          Saved gates
-        </h2>
-        <Table
-          columns={[
-            { key: "name", label: "Gate Name" },
-            {
-              key: "status",
-              label: "Status",
-              render: (row) => <Badge>{row.status}</Badge>,
-            },
-          ]}
-          rows={configuration.gates}
-          empty="No gates configured."
-        />
       </section>
     </form>
   );

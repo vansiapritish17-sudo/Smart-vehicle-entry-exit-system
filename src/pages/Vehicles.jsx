@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, Pencil, Plus, Power, Save, Trash2, X } from "lucide-react";
+import PageHeader, { Plate, SectionTitle } from "../components/common/PageHeader";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import ConfirmDialog from "../components/common/ConfirmDialog";
@@ -21,7 +22,7 @@ const initialForm = {
 };
 
 export default function Vehicles() {
-  const { vehicles, addVehicle, updateVehicle, toggleVehicle, deleteVehicle } = useApp();
+  const { vehicles, addVehicle, updateVehicle, toggleVehicle, deleteVehicle, loading } = useApp();
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -80,33 +81,28 @@ export default function Vehicles() {
 
   return (
     <div className="grid gap-6">
-      <div>
-        <h1 className="text-2xl font-black text-zinc-100">Vehicle Management</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Register and manage the vehicle fleet
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Register"
+        title="Vehicles"
+        description="Register vehicles, keep their details current, and control who the gates admit."
+      />
 
       {/* Add / edit vehicle form */}
       <form onSubmit={submit} className="glass-card">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-bold text-zinc-100">
-            {editingId ? `Edit vehicle ${form.regNo}` : "Register new vehicle"}
-          </h2>
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/15">
-            {editingId ? <Pencil size={15} className="text-violet-300" /> : <Plus size={16} className="text-violet-300" />}
-          </div>
-        </div>
+        <SectionTitle className="mb-5">
+          {editingId ? <>Editing <span className="text-zinc-200">{form.regNo}</span></> : "Register a vehicle"}
+        </SectionTitle>
         <div className="grid gap-4 md:grid-cols-3">
           <Input
-            label="Registration Number"
+            label="Registration number"
+            className="font-mono tracking-wider"
             value={form.regNo}
             onChange={(e) => setForm({ ...form, regNo: e.target.value.toUpperCase() })}
             required
             maxLength={13}
             placeholder="e.g. MH12AB1234"
           />
-          <Input label="Owner Name" value={form.owner} onChange={set("owner")} required minLength={2} maxLength={80} />
+          <Input label="Owner" value={form.owner} onChange={set("owner")} required minLength={2} maxLength={80} />
           <Input
             label="Contact"
             type="tel"
@@ -117,19 +113,19 @@ export default function Vehicles() {
             title="10–13 digit phone number"
             placeholder="e.g. 9876543210"
           />
-          <Select label="Vehicle Type" value={form.type} onChange={set("type")}>
+          <Select label="Type" value={form.type} onChange={set("type")}>
             {VEHICLE_TYPES.map((type) => <option key={type}>{type}</option>)}
           </Select>
-          <Input label="Vehicle Model" value={form.model} onChange={set("model")} maxLength={60} />
+          <Input label="Model" value={form.model} onChange={set("model")} maxLength={60} />
           <Input label="Color" value={form.color} onChange={set("color")} maxLength={30} />
-          <Select label="Registration Status" value={form.registrationStatus} onChange={set("registrationStatus")}>
-            <option>ACTIVE</option>
-            <option>INACTIVE</option>
+          <Select label="Registration" value={form.registrationStatus} onChange={set("registrationStatus")}>
+            <option value="ACTIVE">Active — admitted at the gate</option>
+            <option value="INACTIVE">Inactive — refused at the gate</option>
           </Select>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Button type="submit" disabled={saving}>
-            {editingId ? <><Save size={15} /> Save Changes</> : <><Plus size={15} /> Register Vehicle</>}
+            {editingId ? <><Save size={15} /> Save changes</> : <><Plus size={15} /> Register vehicle</>}
           </Button>
           {editingId && (
             <Button type="button" variant="secondary" onClick={cancelEdit}>
@@ -151,9 +147,20 @@ export default function Vehicles() {
         </div>
       </form>
 
+      <section className="grid gap-3">
+      <SectionTitle>Registered · {vehicles.length}</SectionTitle>
       <Table
+        loading={loading}
         columns={[
-          { key: "regNo", label: "Reg. No." },
+          {
+            key: "regNo",
+            label: "Vehicle",
+            render: (row) => (
+              <Link to={`/vehicles/${row.id}`} className="hover:underline">
+                <Plate>{row.regNo}</Plate>
+              </Link>
+            ),
+          },
           { key: "owner", label: "Owner" },
           { key: "contact", label: "Contact" },
           { key: "type", label: "Type" },
@@ -161,28 +168,28 @@ export default function Vehicles() {
           { key: "color", label: "Color" },
           {
             key: "registrationStatus",
-            label: "Reg. Status",
+            label: "Registration",
             render: (row) => <Badge>{row.registrationStatus}</Badge>,
           },
           {
             key: "currentStatus",
-            label: "Current",
+            label: "Location",
             render: (row) => <Badge>{row.currentStatus}</Badge>,
           },
           {
             key: "actions",
-            label: "Actions",
+            label: "",
             render: (row) => (
-              <div className="flex gap-1">
+              <div className="flex justify-end gap-0.5">
                 <Link
                   to={`/vehicles/${row.id}`}
                   title="View details"
                   aria-label={`View ${row.regNo}`}
-                  className="inline-flex items-center justify-center rounded-full px-3 py-2 text-zinc-400 transition hover:bg-white/6 hover:text-zinc-100"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-100"
                 >
                   <Eye size={13} />
                 </Link>
-                <Button variant="ghost" title="Edit" aria-label={`Edit ${row.regNo}`} onClick={() => startEdit(row)}>
+                <Button variant="ghost" size="sm" className="w-8 px-0" title="Edit" aria-label={`Edit ${row.regNo}`} onClick={() => startEdit(row)}>
                   <Pencil size={13} />
                 </Button>
                 <Button
@@ -191,7 +198,8 @@ export default function Vehicles() {
                   aria-label={`${row.registrationStatus === "ACTIVE" ? "Deactivate" : "Activate"} ${row.regNo}`}
                   disabled={busyId === row.id}
                   onClick={() => toggle(row.id)}
-                  className={row.registrationStatus === "ACTIVE" ? "hover:text-red-400" : "hover:text-lime-400"}
+                  size="sm"
+                  className={`w-8 px-0 ${row.registrationStatus === "ACTIVE" ? "hover:text-red-400" : "hover:text-lime-400"}`}
                 >
                   <Power size={13} />
                 </Button>
@@ -202,7 +210,8 @@ export default function Vehicles() {
                   aria-label={`Delete ${row.regNo}`}
                   disabled={deleteBlocked(row)}
                   onClick={() => setPendingDelete(row)}
-                  className="hover:!bg-red-500/10 hover:!text-red-400"
+                  size="sm"
+                  className="w-8 px-0 hover:!bg-red-500/10 hover:!text-red-400"
                 >
                   <Trash2 size={13} />
                 </Button>
@@ -213,11 +222,13 @@ export default function Vehicles() {
         rows={vehicles}
         empty="No vehicles registered yet. Register the first one above."
       />
+      </section>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={`Delete ${pendingDelete?.regNo ?? "vehicle"}?`}
         confirmLabel="Delete vehicle"
+        busyLabel="Deleting…"
         busy={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}

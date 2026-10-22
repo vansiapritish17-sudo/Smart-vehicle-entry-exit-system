@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Download, History as HistoryIcon } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -11,38 +12,55 @@ import {
   YAxis,
 } from "recharts";
 import Badge from "../components/common/Badge";
+import Button from "../components/common/Button";
 import { Input, Select } from "../components/common/Field";
+import PageHeader, { EmptyState, Plate, SectionTitle } from "../components/common/PageHeader";
 import Table from "../components/common/Table";
 import { useApp } from "../state/AppContext";
 import { chartColors, useTheme } from "../state/theme";
+import { downloadCsv } from "../services/exportCsv";
 import {
   averageStayMinutes,
   chartDataFromMovements,
   eventTime,
   formatMinutes,
+  localToday,
   peakOccupancy,
 } from "../services/dashboardService";
 
 const ChartTooltip = ({ active, payload, label }) => {
-  if (active && payload?.length) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-[var(--surface-2)] px-3 py-2 text-xs shadow-xl">
-        <p className="mb-1 font-semibold text-zinc-300">{label}</p>
-        {payload.map((p) => (
-          <p key={p.dataKey} style={{ color: p.stroke || p.fill }}>
-            {p.dataKey}: <span className="font-bold">{p.value}</span>
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[var(--surface-2)] px-3 py-2 text-xs shadow-[var(--popover-shadow)]">
+      <p className="mb-1 font-mono text-zinc-400">{label}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} className="flex items-center gap-2 text-zinc-200">
+          <span className="h-2 w-2 rounded-full" style={{ background: p.stroke || p.fill }} />
+          {p.dataKey === "entries" ? "Entries" : "Exits"}
+          <span className="ml-auto font-mono font-semibold">{p.value}</span>
+        </p>
+      ))}
+    </div>
+  );
 };
 
+const CSV_COLUMNS = [
+  { label: "Vehicle", value: (m) => m.regNo },
+  { label: "Owner", value: (m) => m.owner },
+  { label: "Movement", value: (m) => m.type },
+  { label: "Gate", value: (m) => m.gate },
+  { label: "Entry time", value: (m) => m.entryTime },
+  { label: "Exit time", value: (m) => m.exitTime },
+  { label: "Duration", value: (m) => m.stayDuration },
+  { label: "Operator", value: (m) => m.operator },
+];
+
 export default function History() {
-  const { movements, configuration, currentUser } = useApp();
+  const { movements, configuration, currentUser, loading } = useApp();
   const chart = chartColors[useTheme().theme];
+  const isAdmin = currentUser.role === "Administrator";
   const [filters, setFilters] = useState({ date: "", vehicle: "", type: "", gate: "" });
+  const filtered = Object.values(filters).some(Boolean);
 
   const rows = useMemo(
     () =>
@@ -68,96 +86,90 @@ export default function History() {
   const avgStay = averageStayMinutes(rows);
   const peak = peakOccupancy(movements);
 
+  const exportRows = () => downloadCsv(`barbican-movements-${localToday()}.csv`, CSV_COLUMNS, rows);
+
   return (
     <div className="grid gap-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-zinc-100">
-          History {currentUser.role === "Administrator" && "& Analytics"}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">Movement records and trends</p>
-      </div>
+      <PageHeader
+        eyebrow="Records"
+        title={isAdmin ? "History & analytics" : "History"}
+        description="Every recorded entry and exit, with the trends behind them."
+        actions={
+          <Button variant="secondary" onClick={exportRows} disabled={!rows.length}>
+            <Download size={14} /> Export CSV
+          </Button>
+        }
+      />
 
-      {/* Stats strip — admin only */}
-      {currentUser.role === "Administrator" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Total Entries", value: entries, color: "text-violet-300" },
-            { label: "Total Exits", value: exits, color: "text-sky-300" },
-            { label: "Avg Stay Duration", value: formatMinutes(avgStay), color: "text-lime-300", sub: "Completed visits in view" },
-            { label: "Peak Occupancy", value: peak, color: "text-amber-300", sub: `Of ${configuration.maximumCapacity} capacity, all time` },
-          ].map(({ label, value, color, sub }) => (
-            <div key={label} className="glass-card">
-              <p className="text-xs font-medium text-zinc-500">{label}</p>
-              <p className={`mt-2 text-3xl font-black tracking-tight ${color}`}>
-                {value}
-              </p>
-              {sub && <p className="mt-1 text-xs text-zinc-600">{sub}</p>}
-            </div>
-          ))}
-        </div>
+      {isAdmin && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "Entries", value: entries, sub: filtered ? "In the current view" : "All time" },
+              { label: "Exits", value: exits, sub: filtered ? "In the current view" : "All time" },
+              { label: "Average stay", value: formatMinutes(avgStay), sub: "Completed visits in view" },
+              { label: "Peak occupancy", value: peak, sub: `Of ${configuration.maximumCapacity} spaces, all time` },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="glass-card">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{label}</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-100 tabular-nums">{value}</p>
+                <p className="mt-1 text-xs text-zinc-500">{sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <section className="glass-card">
+              <SectionTitle>Entries vs exits · last 7 days</SectionTitle>
+              <div className="mt-4 h-60">
+                <ResponsiveContainer>
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: chart.tick, fontSize: 11 }} />
+                    <YAxis hide />
+                    <CartesianGrid stroke={chart.grid} vertical={false} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursor }} />
+                    <Bar dataKey="entries" fill={chart.entries} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="exits" fill={chart.exits} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+            <section className="glass-card">
+              <SectionTitle>Movement trend · last 7 days</SectionTitle>
+              <div className="mt-4 h-60">
+                <ResponsiveContainer>
+                  <LineChart data={chartData}>
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: chart.tick, fontSize: 11 }} />
+                    <YAxis hide />
+                    <CartesianGrid stroke={chart.grid} vertical={false} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Line dataKey="entries" stroke={chart.entries} strokeWidth={2} dot={false} />
+                    <Line dataKey="exits" stroke={chart.exits} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </div>
+        </>
       )}
 
-      {/* Charts — admin only */}
-      {currentUser.role === "Administrator" && (
-        <div className="grid gap-6 xl:grid-cols-2">
-          <div className="glass-card">
-            <h2 className="mb-4 font-bold text-zinc-100">Entries vs Exits</h2>
-            <div className="h-60">
-              <ResponsiveContainer>
-                <BarChart data={chartData}>
-                  <XAxis
-                    dataKey="day"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.tick, fontSize: 11 }}
-                  />
-                  <YAxis hide />
-                  <CartesianGrid stroke={chart.grid} vertical={false} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursor }} />
-                  <Bar dataKey="entries" fill={chart.entries} radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="exits" fill={chart.exits} radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="glass-card">
-            <h2 className="mb-4 font-bold text-zinc-100">Movement Trend</h2>
-            <div className="h-60">
-              <ResponsiveContainer>
-                <LineChart data={chartData}>
-                  <XAxis
-                    dataKey="day"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: chart.tick, fontSize: 11 }}
-                  />
-                  <YAxis hide />
-                  <CartesianGrid stroke={chart.grid} vertical={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Line
-                    dataKey="entries"
-                    stroke={chart.entries}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    dataKey="exits"
-                    stroke={chart.exits}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+      <section className="grid gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <SectionTitle>
+            Records · {rows.length}
+            {filtered && ` of ${movements.length}`}
+          </SectionTitle>
+          {filtered && (
+            <button
+              type="button"
+              onClick={() => setFilters({ date: "", vehicle: "", type: "", gate: "" })}
+              className="text-xs font-medium text-zinc-400 transition hover:text-zinc-100"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-      )}
-
-      {/* Filters */}
-      <div className="glass-card">
-        <h2 className="mb-4 font-bold text-zinc-100">Filter records</h2>
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
           <Input
             label="Date"
             type="date"
@@ -170,44 +182,43 @@ export default function History() {
             placeholder="e.g. MH12AB"
             onChange={(e) => setFilters({ ...filters, vehicle: e.target.value })}
           />
-          <Select
-            label="Movement type"
-            value={filters.type}
-            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-          >
-            <option value="">All</option>
-            <option>ENTRY</option>
-            <option>EXIT</option>
+          <Select label="Movement" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
+            <option value="">Entries and exits</option>
+            <option value="ENTRY">Entries</option>
+            <option value="EXIT">Exits</option>
           </Select>
-          <Select
-            label="Gate"
-            value={filters.gate}
-            onChange={(e) => setFilters({ ...filters, gate: e.target.value })}
-          >
+          <Select label="Gate" value={filters.gate} onChange={(e) => setFilters({ ...filters, gate: e.target.value })}>
             <option value="">All gates</option>
-            {gateOptions.map((gate) => <option key={gate}>{gate}</option>)}
+            {gateOptions.map((gate) => (
+              <option key={gate}>{gate}</option>
+            ))}
           </Select>
         </div>
-      </div>
 
-      <Table
-        columns={[
-          { key: "regNo", label: "Vehicle No." },
-          { key: "owner", label: "Owner" },
-          {
-            key: "type",
-            label: "Movement",
-            render: (row) => <Badge>{row.type}</Badge>,
-          },
-          { key: "gate", label: "Gate" },
-          { key: "entryTime", label: "Entry Time" },
-          { key: "exitTime", label: "Exit Time" },
-          { key: "stayDuration", label: "Duration" },
-          { key: "operator", label: "Operator" },
-        ]}
-        rows={rows}
-        empty="No movement records match the current filters."
-      />
+        <Table
+          loading={loading}
+          columns={[
+            { key: "regNo", label: "Vehicle", render: (row) => <Plate>{row.regNo}</Plate> },
+            { key: "owner", label: "Owner" },
+            { key: "type", label: "Movement", render: (row) => <Badge>{row.type}</Badge> },
+            { key: "gate", label: "Gate" },
+            { key: "entryTime", label: "Entry", render: (row) => <span className="font-mono text-xs">{row.entryTime || "—"}</span> },
+            { key: "exitTime", label: "Exit", render: (row) => <span className="font-mono text-xs">{row.exitTime || "—"}</span> },
+            { key: "stayDuration", label: "Duration" },
+            { key: "operator", label: "Operator" },
+          ]}
+          rows={rows}
+          empty={
+            filtered ? (
+              "No records match these filters."
+            ) : (
+              <EmptyState icon={HistoryIcon} title="No movements yet">
+                Every entry and exit recorded at a gate is kept here.
+              </EmptyState>
+            )
+          }
+        />
+      </section>
     </div>
   );
 }

@@ -1,26 +1,19 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Check, ShieldCheck } from "lucide-react";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
-import { Select } from "../components/common/Field";
+import { Segmented } from "../components/common/Field";
+import PageHeader, { EmptyState, Plate } from "../components/common/PageHeader";
 import Table from "../components/common/Table";
 import { useApp } from "../state/AppContext";
-
-const ALERT_LABELS = {
-  UNAUTHORIZED_VEHICLE: "Unauthorized vehicle",
-  INACTIVE_VEHICLE: "Inactive registration",
-  DUPLICATE_ENTRY: "Duplicate entry",
-  INVALID_EXIT: "Invalid exit",
-  CAPACITY_WARNING: "Capacity warning",
-  CAPACITY_FULL: "Capacity full",
-};
+import { ALERT_LABELS } from "../services/dashboardService";
 
 export default function Alerts() {
-  const { alerts, resolveAlert } = useApp();
+  const { alerts, resolveAlert, loading } = useApp();
   const [filters, setFilters] = useState({ status: "OPEN", severity: "" });
   const [busyId, setBusyId] = useState(null);
   const open = alerts.filter((a) => a.status === "OPEN").length;
-  const resolved = alerts.filter((a) => a.status === "RESOLVED").length;
+  const resolved = alerts.length - open;
 
   const rows = alerts.filter(
     (a) =>
@@ -36,86 +29,85 @@ export default function Alerts() {
 
   return (
     <div className="grid gap-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-zinc-100">Alerts</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Live monitoring & alert records
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300">
-            <AlertTriangle size={14} />
-            {open} open
+      <PageHeader
+        eyebrow="Security"
+        title="Alerts"
+        description="Refused attempts and capacity warnings raised at the gates."
+        actions={
+          <div className="flex items-center gap-5 font-mono text-xs">
+            <span className="flex items-center gap-2 text-zinc-400">
+              <span className={`h-1.5 w-1.5 rounded-full ${open ? "bg-amber-400" : "bg-zinc-600"}`} />
+              <span className="tabular-nums text-zinc-100">{open}</span> open
+            </span>
+            <span className="flex items-center gap-2 text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-400" />
+              <span className="tabular-nums text-zinc-100">{resolved}</span> resolved
+            </span>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-4 py-2 text-sm font-semibold text-lime-300">
-            <CheckCircle2 size={14} />
-            {resolved} resolved
-          </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="glass-card grid gap-4 sm:grid-cols-2 md:max-w-xl">
-        <Select
+      <div className="flex flex-wrap gap-6">
+        <Segmented
           label="Status"
           value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-        >
-          <option value="OPEN">Open</option>
-          <option value="RESOLVED">Resolved</option>
-          <option value="">All</option>
-        </Select>
-        <Select
+          onChange={(status) => setFilters({ ...filters, status })}
+          options={[["OPEN", "Open"], ["RESOLVED", "Resolved"], ["", "All"]]}
+        />
+        <Segmented
           label="Severity"
           value={filters.severity}
-          onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
-        >
-          <option value="">All</option>
-          <option>HIGH</option>
-          <option>MEDIUM</option>
-          <option>LOW</option>
-        </Select>
+          onChange={(severity) => setFilters({ ...filters, severity })}
+          options={[["", "All"], ["HIGH", "High"], ["MEDIUM", "Medium"], ["LOW", "Low"]]}
+        />
       </div>
 
       <Table
+        loading={loading}
         columns={[
-          { key: "vehicle", label: "Vehicle" },
-          { key: "type", label: "Alert Type", render: (row) => ALERT_LABELS[row.type] ?? row.type },
+          { key: "vehicle", label: "Vehicle", render: (row) => <Plate>{row.vehicle || "—"}</Plate> },
           {
-            key: "severity",
-            label: "Severity",
-            render: (row) => <Badge>{row.severity}</Badge>,
+            key: "type",
+            label: "Alert",
+            render: (row) => <span className="text-zinc-200">{ALERT_LABELS[row.type] ?? row.type}</span>,
           },
-          { key: "time", label: "Time" },
-          { key: "description", label: "Description" },
+          { key: "severity", label: "Severity", render: (row) => <Badge>{row.severity}</Badge> },
+          { key: "time", label: "Time", render: (row) => <span className="font-mono text-xs text-zinc-400">{row.time}</span> },
+          {
+            key: "description",
+            label: "Details",
+            render: (row) => <span className="block max-w-sm text-zinc-400">{row.description}</span>,
+          },
           {
             key: "status",
             label: "Status",
-            render: (row) => (
-              <div className="grid gap-1">
-                <Badge>{row.status}</Badge>
-                {row.resolvedBy && (
-                  <span className="text-[11px] text-zinc-600">
-                    by {row.resolvedBy} · {row.resolvedAt}
-                  </span>
-                )}
-              </div>
-            ),
-          },
-          {
-            key: "actions",
-            label: "Actions",
             render: (row) =>
               row.status === "OPEN" ? (
-                <Button variant="violet" disabled={busyId === row.id} onClick={() => resolve(row.id)}>
-                  Mark as Resolved
+                <Button size="sm" variant="secondary" disabled={busyId === row.id} onClick={() => resolve(row.id)}>
+                  <Check size={13} /> Resolve
                 </Button>
-              ) : null,
+              ) : (
+                <div className="grid gap-0.5">
+                  <Badge>{row.status}</Badge>
+                  {row.resolvedBy && (
+                    <span className="text-[11px] text-zinc-500">
+                      by {row.resolvedBy} · {row.resolvedAt}
+                    </span>
+                  )}
+                </div>
+              ),
           },
         ]}
         rows={rows}
-        empty={filters.status === "OPEN" ? "No open alerts. All clear." : "No alerts match these filters."}
+        empty={
+          filters.status === "OPEN" && !filters.severity ? (
+            <EmptyState icon={ShieldCheck} title="All clear">
+              No open alerts. Refused attempts at any gate will appear here instantly.
+            </EmptyState>
+          ) : (
+            "No alerts match these filters."
+          )
+        }
       />
     </div>
   );

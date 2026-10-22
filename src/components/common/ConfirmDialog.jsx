@@ -6,7 +6,7 @@ import Button from "./Button";
  * Modal confirmation for destructive actions. Focus starts on Cancel so a stray
  * Enter never confirms; Escape and the backdrop dismiss it while not busy.
  */
-export default function ConfirmDialog({ open, title, children, confirmLabel, busy = false, onConfirm, onCancel }) {
+export default function ConfirmDialog({ open, title, children, confirmLabel, busyLabel = "Working…", busy = false, onConfirm, onCancel }) {
   const cancelRef = useRef(null);
 
   // Focus once on open, not on every re-render from live data.
@@ -49,7 +49,7 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
             Cancel
           </Button>
           <Button variant="danger" onClick={onConfirm} disabled={busy}>
-            {busy ? "Deleting…" : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </Button>
         </div>
       </div>

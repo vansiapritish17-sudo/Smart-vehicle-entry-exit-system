@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, ChevronDown, Minus, Search, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ListChecks, Minus, Search, X } from "lucide-react";
+import AnimatedNumber from "../components/common/AnimatedNumber";
+import Table from "../components/common/Table";
 import { useApp } from "../state/AppContext";
-import { eventTime, formatMinutes, localToday, minutesSince } from "../services/dashboardService";
+import { belongsTo, eventTime, formatMinutes, localToday, minutesSince } from "../services/dashboardService";
 
 // Matches the backend's VehicleService.normalizeRegNo, so the live lookup agrees with the server.
 const normalize = (regNo) => (regNo ?? "").replace(/[\s-]/g, "").toUpperCase();
@@ -34,7 +36,7 @@ export default function MovementForm({ mode }) {
   const openEntry = useMemo(() => {
     if (isEntry || !match) return null;
     return movements
-      .filter((m) => m.type === "ENTRY" && normalize(m.regNo) === normalize(match.regNo) && !m.exitTime)
+      .filter((m) => m.type === "ENTRY" && belongsTo(m, match) && !m.exitTime)
       .sort((a, b) => (b.entryTime ?? "").localeCompare(a.entryTime ?? ""))[0] ?? null;
   }, [isEntry, match, movements]);
 
@@ -150,19 +152,17 @@ export default function MovementForm({ mode }) {
   return (
     <div className="grid gap-6">
       {/* ── Page header ── */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className={`font-mono text-[11px] uppercase tracking-[0.2em] ${accent}`}>
-            Gate operations · {isEntry ? "Inbound" : "Outbound"}
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">
-            {isEntry ? "Record entry" : "Record exit"}
-          </h1>
-        </div>
-        <Occupancy inside={inside} capacity={capacity} threshold={Number(configuration.alertThreshold) || 80} />
+      <header>
+        <p className={`font-mono text-[11px] uppercase tracking-[0.2em] ${accent}`}>
+          Gate operations · {isEntry ? "Inbound" : "Outbound"}
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">
+          {isEntry ? "Record entry" : "Record exit"}
+        </h1>
       </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-6">
         {/* ── Console ── */}
         <section className="glass-card p-0!">
           <form onSubmit={submit}>
@@ -181,20 +181,22 @@ export default function MovementForm({ mode }) {
                     autoComplete="off"
                     spellCheck={false}
                     placeholder="MH12AB1234"
-                    className="h-14 w-full rounded-lg border border-white/10 bg-[var(--bg)] pl-4 pr-36 font-mono text-xl font-bold uppercase tracking-[0.14em] text-zinc-100 outline-none transition placeholder:font-medium placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20"
+                    className="h-14 w-full rounded-lg border border-white/10 bg-[var(--bg)] pl-4 pr-24 font-mono text-lg sm:pr-36 sm:text-xl font-bold uppercase tracking-[0.14em] text-zinc-100 outline-none transition placeholder:font-medium placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setPickerOpen((open) => !open)}
                     aria-expanded={pickerOpen}
                     aria-haspopup="listbox"
+                    aria-label="Choose a registered vehicle"
                     className={`absolute right-2 top-1/2 flex h-9 -translate-y-1/2 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition ${
                       pickerOpen
                         ? "border-violet-500/40 bg-violet-500/10 text-violet-300"
                         : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-100"
                     }`}
                   >
-                    Registered
+                    <ListChecks size={14} className="sm:hidden" />
+                    <span className="hidden sm:inline">Registered</span>
                     <span className="font-mono text-[10px] text-zinc-500">{candidates.length}</span>
                     <ChevronDown size={13} className={`transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -277,8 +279,31 @@ export default function MovementForm({ mode }) {
           {result && <Receipt result={result} onDismiss={() => setResult(null)} />}
         </section>
 
+        <section className="grid gap-3">
+          <SectionTitle>{isEntry ? "Recent entries" : "Recent exits"}</SectionTitle>
+          <Table
+            columns={[
+              {
+                key: "regNo",
+                label: "Vehicle",
+                render: (m) => <span className="font-mono font-semibold tracking-wider text-zinc-100">{m.regNo}</span>,
+              },
+              { key: "owner", label: "Owner" },
+              { key: "gate", label: "Gate" },
+              ...(isEntry ? [] : [{ key: "stayDuration", label: "Stay" }]),
+              { key: "operator", label: "Operator" },
+              { key: "time", label: "Time", render: (m) => <Stamp value={eventTime(m)} /> },
+            ]}
+            rows={recent}
+            empty={isEntry ? "No entries recorded yet." : "No exits recorded yet."}
+          />
+        </section>
+        </div>
+
         {/* ── Side column ── */}
         <aside className="grid gap-6">
+          <OccupancyCard inside={inside} capacity={capacity} threshold={Number(configuration.alertThreshold) || 80} />
+
           <section className="glass-card">
             <SectionTitle>Gate checks</SectionTitle>
             <ul className="mt-4 grid gap-3.5">
@@ -290,50 +315,36 @@ export default function MovementForm({ mode }) {
               Checked against the live register. The server makes the final decision.
             </p>
           </section>
-
-          <section className="glass-card">
-            <SectionTitle>{isEntry ? "Recent entries" : "Recent exits"}</SectionTitle>
-            {recent.length === 0 ? (
-              <p className="mt-4 text-sm text-zinc-500">Nothing recorded yet.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-white/[0.06]">
-                {recent.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold tracking-wider text-zinc-200">{m.regNo}</p>
-                      <p className="truncate text-xs text-zinc-500">{m.gate}</p>
-                    </div>
-                    <Stamp value={eventTime(m)} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </aside>
       </div>
     </div>
   );
 }
 
-/* ── Compact occupancy readout for the header ── */
-function Occupancy({ inside, capacity, threshold }) {
+/* ── Occupancy at a glance, at the top of the side column ── */
+function OccupancyCard({ inside, capacity, threshold }) {
   const percent = capacity ? Math.min(100, Math.round((inside / capacity) * 100)) : 0;
   const high = percent >= threshold;
+  const free = Math.max(0, capacity - inside);
   return (
-    <div className="w-full sm:w-60">
-      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-        <span>Occupancy</span>
-        <span className="tabular-nums">
-          <span className={high ? "text-red-300" : "text-zinc-200"}>{inside}</span> / {capacity}
+    <section className="glass-card">
+      <SectionTitle>Occupancy</SectionTitle>
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <p className="text-3xl font-semibold tracking-tight text-zinc-100">
+          <AnimatedNumber value={inside} />
+          <span className="text-lg text-zinc-600"> / {capacity}</span>
+        </p>
+        <span className={`text-xs font-medium ${high ? "text-amber-300" : "text-lime-300"}`}>
+          {free} space{free === 1 ? "" : "s"} free
         </span>
       </div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
         <div
-          className={`h-full rounded-full transition-all duration-700 ${high ? "bg-red-500" : "bg-lime-300"}`}
+          className={`h-full rounded-full transition-all duration-700 ${high ? "bg-amber-400" : "bg-lime-300"}`}
           style={{ width: `${percent}%` }}
         />
       </div>
-    </div>
+    </section>
   );
 }
 

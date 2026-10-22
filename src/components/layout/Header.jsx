@@ -1,7 +1,8 @@
-import { Bell, LogOut, Menu, Moon, Search, ShieldCheck, Sun, User, X } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Search, Sun, User, X } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../../state/AppContext";
 import { useTheme } from "../../state/theme";
+import Mark from "../common/Mark";
 
 const adminTabs = [
   { label: "Dashboard", to: "/dashboard" },
@@ -50,10 +51,8 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
             aria-label="Barbican — go to dashboard"
             className="flex items-center gap-2.5 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
           >
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-lg shadow-violet-900/40 text-on-accent">
-              <ShieldCheck size={16} strokeWidth={2.5} />
-            </div>
-            <span className="hidden text-sm font-bold tracking-wide text-zinc-100 sm:block">BARBICAN</span>
+            <Mark className="h-6 w-6" />
+            <span className="hidden text-sm font-bold tracking-[0.18em] text-zinc-100 sm:block">BARBICAN</span>
           </Link>
           {/* Shown only when something needs attention: loading or offline */}
           {syncError ? (

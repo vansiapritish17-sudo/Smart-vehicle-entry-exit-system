@@ -100,3 +100,49 @@ export function peakOccupancy(movements) {
   });
   return peak;
 }
+
+/** Human labels for the alert types the backend raises. */
+export const ALERT_LABELS = {
+  UNAUTHORIZED_VEHICLE: "Unauthorized vehicle",
+  INACTIVE_VEHICLE: "Inactive registration",
+  DUPLICATE_ENTRY: "Duplicate entry",
+  INVALID_EXIT: "Invalid exit",
+  CAPACITY_WARNING: "Capacity warning",
+  CAPACITY_FULL: "Capacity full",
+};
+
+/**
+ * One stream of everything that happened at the gates: recorded entries and
+ * exits, plus alerts (refused attempts and capacity warnings). Newest first.
+ */
+export function gateEvents(movements, alerts, limit = 8) {
+  const events = [
+    ...movements.map((m) => ({
+      id: `m-${m.id}`,
+      kind: m.type,
+      regNo: m.regNo,
+      gate: m.gate,
+      time: eventTime(m),
+      detail: m.type === "EXIT" && m.stayDuration ? `Stayed ${m.stayDuration}` : m.owner,
+    })),
+    ...alerts.map((a) => ({
+      id: `a-${a.id}`,
+      kind: a.type === "CAPACITY_WARNING" ? "WARNING" : "ALERT",
+      severity: a.severity,
+      regNo: a.vehicle,
+      gate: a.gate,
+      time: a.time || "",
+      detail: ALERT_LABELS[a.type] ?? a.type,
+    })),
+  ];
+  return events.sort((a, b) => b.time.localeCompare(a.time)).slice(0, limit);
+}
+
+/**
+ * Whether a movement belongs to a vehicle. Matched on the vehicle's id so a plate
+ * corrected after the fact keeps its history; older records without one fall back
+ * to the plate.
+ */
+export function belongsTo(movement, vehicle) {
+  return movement.vehicleId ? movement.vehicleId === vehicle.id : movement.regNo === vehicle.regNo;
+}

@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import Badge from "../components/common/Badge";
+import { Link } from "react-router-dom";
+import { Car } from "lucide-react";
+import AnimatedNumber from "../components/common/AnimatedNumber";
+import PageHeader, { EmptyState, SectionTitle, Skeleton } from "../components/common/PageHeader";
 import Table from "../components/common/Table";
+import LiveFeed from "../components/dashboard/LiveFeed";
+import OccupancyPanel from "../components/dashboard/OccupancyPanel";
 import { useApp } from "../state/AppContext";
-import { formatMinutes, getDashboardStats, minutesSince } from "../services/dashboardService";
+import { belongsTo, formatMinutes, gateEvents, getDashboardStats, minutesSince } from "../services/dashboardService";
 
 export default function Monitoring() {
-  const { vehicles, movements, alerts, configuration, syncedAt, syncError } = useApp();
+  const { vehicles, movements, alerts, configuration, loading, syncedAt, syncError } = useApp();
   // Re-render every minute so "time inside" keeps counting between data changes.
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -13,10 +18,6 @@ export default function Monitoring() {
     return () => window.clearInterval(timer);
   }, []);
   const stats = getDashboardStats(vehicles, movements, alerts, configuration);
-  const occupancyPercent = stats.maximumCapacity
-    ? Math.min(100, Math.round((stats.currentOccupancy / stats.maximumCapacity) * 100))
-    : 0;
-  const isHigh = occupancyPercent >= configuration.alertThreshold;
 
   const insideRows = useMemo(
     () =>
@@ -24,135 +25,104 @@ export default function Monitoring() {
         .filter((v) => v.currentStatus === "INSIDE")
         .map((v) => {
           // Movements are newest first, so this is the entry that is still open.
-          const entry = movements.find(
-            (m) => m.regNo === v.regNo && m.type === "ENTRY" && !m.exitTime
-          );
-          return {
-            ...v,
-            entryTime: entry?.entryTime || "—",
-            gate: entry?.gate || "—",
-            duration: entry ? formatMinutes(minutesSince(entry.entryTime)) : "—",
-          };
-        }),
+          const entry = movements.find((m) => belongsTo(m, v) && m.type === "ENTRY" && !m.exitTime);
+          const minutes = entry ? minutesSince(entry.entryTime) : null;
+          return { ...v, entryTime: entry?.entryTime, gate: entry?.gate, minutes };
+        })
+        .sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [vehicles, movements, tick]
   );
 
   return (
     <div className="grid gap-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-zinc-100">Live Monitoring</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Real-time occupancy and vehicle tracking
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {syncError ? (
-            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300">
-              {syncError}
-            </span>
+      <PageHeader
+        eyebrow={
+          syncError ? (
+            <span className="text-amber-400">Live updates interrupted</span>
           ) : (
-            <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-500">
+            <>
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-lime-400" />
-              Live · last update {syncedAt ? syncedAt.toLocaleTimeString("en-IN") : "—"}
-            </span>
-          )}
-        </div>
-      </div>
+              Live{syncedAt && <span className="text-zinc-500">· synced {syncedAt.toLocaleTimeString("en-IN", { hour12: false })}</span>}
+            </>
+          )
+        }
+        accent="text-lime-300"
+        title="Monitoring"
+        description="Who is on site right now, and everything happening at the gates."
+      />
 
-      {/* Occupancy card */}
-      <div className="glass-card">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-              Occupancy
-            </p>
-            <p className="mt-2 text-4xl font-black tracking-tight text-zinc-100">
-              {stats.currentOccupancy}
-              <span className="text-zinc-600">/{stats.maximumCapacity}</span>
-            </p>
-          </div>
-          <div
-            className={`rounded-full px-4 py-2 text-sm font-bold ${
-              isHigh
-                ? "bg-red-500/15 text-red-300"
-                : "bg-lime-400/15 text-lime-300"
-            }`}
-          >
-            {occupancyPercent}% occupied
-          </div>
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              isHigh ? "bg-red-500" : "bg-violet-500"
-            }`}
-            style={{ width: `${occupancyPercent}%` }}
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-4 text-center">
+      <OccupancyPanel
+        inside={stats.currentOccupancy}
+        capacity={stats.maximumCapacity}
+        threshold={Number(configuration.alertThreshold) || 80}
+        loading={loading}
+      >
+        <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-5 sm:grid-cols-4">
           {[
-            { label: "Inside", value: stats.vehiclesInside, color: "text-violet-300" },
-            { label: "Outside", value: stats.vehiclesOutside, color: "text-zinc-400" },
-            { label: "Max Capacity", value: stats.maximumCapacity, color: "text-zinc-300" },
-          ].map(({ label, value, color }) => (
+            ["Inside", stats.vehiclesInside],
+            ["Spaces free", Math.max(0, stats.maximumCapacity - stats.currentOccupancy)],
+            ["Entries today", stats.todayEntries],
+            ["Exits today", stats.todayExits],
+          ].map(([label, value]) => (
             <div key={label}>
-              <p className={`text-2xl font-black ${color}`}>{value}</p>
-              <p className="text-xs text-zinc-600">{label}</p>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{label}</dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums text-zinc-100">
+                {loading ? <Skeleton className="mt-1 h-6 w-10" /> : <AnimatedNumber value={value} />}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
+      </OccupancyPanel>
+
+      {/* Two equal panels that scroll inside themselves, so neither column trails off */}
+      <div className="grid gap-6 lg:h-[520px] lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <section className="glass-card flex min-h-0 flex-col p-0!">
+          <SectionTitle className="px-5 pb-3 pt-5">Vehicles inside · {insideRows.length}</SectionTitle>
+          <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/[0.06]">
+            <Table
+              bare
+              loading={loading}
+              columns={[
+                {
+                  key: "regNo",
+                  label: "Vehicle",
+                  render: (row) => (
+                    <Link to={`/vehicles/${row.id}`} className="font-mono font-semibold tracking-wider text-zinc-100 hover:underline">
+                      {row.regNo}
+                    </Link>
+                  ),
+                },
+                { key: "owner", label: "Owner" },
+                { key: "gate", label: "Gate" },
+                {
+                  key: "entryTime",
+                  label: "Entered",
+                  render: (row) => <span className="font-mono text-xs text-zinc-400">{row.entryTime?.slice(11, 16) || "—"}</span>,
+                },
+                {
+                  key: "minutes",
+                  label: "On site",
+                  render: (row) => <span className="font-mono text-xs tabular-nums text-zinc-200">{formatMinutes(row.minutes)}</span>,
+                },
+              ]}
+              rows={insideRows}
+              empty={
+                <EmptyState icon={Car} title="The facility is empty">
+                  Vehicles appear here from the moment their entry is recorded.
+                </EmptyState>
+              }
+            />
+          </div>
+        </section>
+
+        <section className="glass-card flex min-h-0 flex-col p-0!">
+          <SectionTitle className="px-5 pb-3 pt-5">Gate activity</SectionTitle>
+          <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/[0.06] px-3 py-2">
+            <LiveFeed events={gateEvents(movements, alerts, 20)} loading={loading} />
+          </div>
+        </section>
       </div>
-
-      {/* Inside vehicles */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400 uppercase tracking-widest">
-          Vehicles Currently Inside
-        </h2>
-        <Table
-          columns={[
-            { key: "regNo", label: "Vehicle" },
-            { key: "owner", label: "Owner" },
-            { key: "entryTime", label: "Entry Time" },
-            { key: "gate", label: "Gate" },
-            { key: "duration", label: "Time Inside" },
-            {
-              key: "currentStatus",
-              label: "Status",
-              render: (row) => <Badge>{row.currentStatus}</Badge>,
-            },
-          ]}
-          rows={insideRows}
-          empty="No vehicles are inside right now."
-        />
-      </section>
-
-      {/* Recent activity */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400 uppercase tracking-widest">
-          Recent Activity
-        </h2>
-        <Table
-          columns={[
-            { key: "regNo", label: "Vehicle" },
-            {
-              key: "type",
-              label: "Movement",
-              render: (row) => <Badge>{row.type}</Badge>,
-            },
-            { key: "gate", label: "Gate" },
-            {
-              key: "time",
-              label: "Timestamp",
-              render: (row) => (row.type === "ENTRY" ? row.entryTime : row.exitTime),
-            },
-          ]}
-          rows={movements.slice(0, 10)}
-          empty="No movements recorded yet."
-        />
-      </section>
     </div>
   );
 }
