@@ -3,6 +3,8 @@
 
 @theme {
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Text on a solid accent fill (violet, red, gradient avatars) — white in both themes. */
+  --color-on-accent: #ffffff;
 }
 
 /* ── Design Tokens ── */
@@ -19,10 +21,87 @@
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --text-muted: #52525b;
+  --card-shadow: 0 4px 40px rgba(0, 0, 0, 0.3);
+  --popover-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --scroll-thumb: #1a1a1e;
+  --scroll-thumb-hover: #3f3f46;
+  --selection-fg: #c4b5fd;
+  --pill-active-bg: #ffffff;
+  --pill-active-fg: #09090b;
+  --pill-hover-bg: rgba(255, 255, 255, 0.07);
+  --pill-hover-fg: #e4e4e7;
 
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   color-scheme: dark;
   background: var(--bg);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Light theme
+   The app is written dark-first with Tailwind's palette. Every Tailwind colour
+   class reads a --color-* variable, so light mode remaps the palette here
+   instead of doubling every class with a light variant:
+   - zinc is mirrored, so "light text on dark" becomes "dark text on light";
+   - white becomes near-black, so white/5-style overlays and borders still
+     read as a faint tint on a light surface;
+   - the pale accent shades used for text (300/400) are deepened for contrast.
+   ══════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --border: rgba(9, 9, 11, 0.08);
+  --border-strong: rgba(9, 9, 11, 0.16);
+  --violet-dim: rgba(139, 92, 246, 0.18);
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --card-shadow: 0 1px 2px rgba(9, 9, 11, 0.04), 0 8px 24px -12px rgba(9, 9, 11, 0.1);
+  --popover-shadow: 0 16px 40px -12px rgba(9, 9, 11, 0.2), 0 0 0 1px rgba(9, 9, 11, 0.02);
+  --scroll-thumb: #d4d4d8;
+  --scroll-thumb-hover: #a1a1aa;
+  --selection-fg: #5b21b6;
+  --pill-active-bg: #18181b;
+  --pill-active-fg: #ffffff;
+  --pill-hover-bg: rgba(9, 9, 11, 0.05);
+  --pill-hover-fg: #18181b;
+
+  --color-white: #09090b;
+
+  --color-zinc-50: #09090b;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #27272a;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-400: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-700: #c4c4ca;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-950: #ffffff;
+
+  --color-lime-300: #4d7c0f;
+  --color-lime-400: #65a30d;
+  --color-violet-200: #5b21b6;
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+
+  color-scheme: light;
+}
+
+/* Colours ease across a theme switch; the class is only present for that moment. */
+:root.theme-switching,
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, fill 0.25s ease !important;
 }
 
 /* ── Base ── */
@@ -61,17 +140,17 @@ select option:disabled {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-2);
+  background: var(--scroll-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--scroll-thumb-hover);
 }
 
 /* ── Selection ── */
 ::selection {
   background: var(--violet-dim);
-  color: #c4b5fd;
+  color: var(--selection-fg);
 }
 
 /* ── Table wrap ── */
@@ -128,7 +207,7 @@ select option:disabled {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--card-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -138,8 +217,8 @@ select option:disabled {
 
 /* ── Nav pill active ── */
 .nav-pill-active {
-  background: #ffffff;
-  color: #09090b;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
   border-radius: 9999px;
   font-weight: 700;
 }
@@ -151,8 +230,8 @@ select option:disabled {
   font-weight: 600;
 }
 .nav-pill:hover {
-  background: rgba(255,255,255,0.07);
-  color: #e4e4e7;
+  background: var(--pill-hover-bg);
+  color: var(--pill-hover-fg);
 }
 
 /* ══════════════════════════════════════════════════════════

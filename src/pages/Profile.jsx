@@ -66,7 +66,7 @@ export default function Profile() {
         {/* ── Identity ── */}
         <section className="glass-card">
           <div className="flex items-center gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-violet-800 text-base font-bold text-white">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-violet-800 text-base font-bold text-on-accent">
               {currentUser.name?.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">

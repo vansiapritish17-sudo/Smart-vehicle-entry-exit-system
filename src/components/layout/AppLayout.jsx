@@ -13,7 +13,7 @@ export default function AppLayout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
+    <div className="min-h-screen bg-[var(--bg)]">
       <Header mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {/* Keyed on the route so each page change replays the entrance. */}

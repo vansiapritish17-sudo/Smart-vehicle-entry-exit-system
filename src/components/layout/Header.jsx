@@ -1,6 +1,7 @@
-import { Bell, LogOut, Menu, Search, ShieldCheck, User, X } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Search, ShieldCheck, Sun, User, X } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../../state/AppContext";
+import { useTheme } from "../../state/theme";
 
 const adminTabs = [
   { label: "Dashboard", to: "/dashboard" },
@@ -26,6 +27,7 @@ const operatorTabs = [
 
 export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
   const { currentUser, alerts, loading, signOut, syncError } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const openAlerts = alerts.filter((a) => a.status === "OPEN").length;
   const tabs = currentUser?.role === "Administrator" ? adminTabs : operatorTabs;
@@ -38,7 +40,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/8 bg-[#09090b]/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/8 bg-[var(--bg)]/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 sm:px-6 h-[60px]">
 
         {/* Logo */}
@@ -48,7 +50,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
             aria-label="Barbican — go to dashboard"
             className="flex items-center gap-2.5 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
           >
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-lg shadow-violet-900/40">
+            <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-lg shadow-violet-900/40 text-on-accent">
               <ShieldCheck size={16} strokeWidth={2.5} />
             </div>
             <span className="hidden text-sm font-bold tracking-wide text-zinc-100 sm:block">BARBICAN</span>
@@ -91,6 +93,17 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
 
         {/* Right icons */}
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/* The icon shows the theme you'll switch to */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+            aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+            className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+          >
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+
           <NavLink
             to="/vehicles/search"
             className="hidden sm:grid h-9 w-9 place-items-center rounded-full bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition"
@@ -113,13 +126,13 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
           {/* User avatar */}
           <div className="relative group">
             <button
-              className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-xs font-bold text-white shadow"
+              className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-xs font-bold text-on-accent shadow"
               aria-label="User menu"
             >
               {initials}
             </button>
             {/* Dropdown */}
-            <div className="pointer-events-none absolute right-0 top-12 w-48 opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 transition-opacity duration-150 rounded-2xl border border-white/10 bg-[#1a1a1e] p-2 shadow-2xl shadow-black/50">
+            <div className="pointer-events-none absolute right-0 top-12 w-48 opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 transition-opacity duration-150 rounded-2xl border border-white/10 bg-[var(--surface-2)] p-2 shadow-[var(--popover-shadow)]">
               <p className="px-3 py-2 text-xs font-semibold text-zinc-200">{currentUser?.name}</p>
               <p className="px-3 pb-2 text-[10px] text-zinc-500">{currentUser?.role}</p>
               <hr className="border-white/8 mb-1" />
@@ -151,7 +164,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <nav className="lg:hidden border-t border-white/8 bg-[#09090b] px-4 py-3 grid gap-1">
+        <nav className="lg:hidden border-t border-white/8 bg-[var(--bg)] px-4 py-3 grid gap-1">
           {[...tabs, { label: "Search", to: "/vehicles/search" }, { label: "Profile", to: "/profile" }]
             .filter((tab, i, all) => all.findIndex((t) => t.to === tab.to) === i)
             .map((tab) => (
@@ -161,7 +174,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
               onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) =>
                 isActive
-                  ? "rounded-xl bg-white text-black px-4 py-2.5 text-sm font-bold"
+                  ? "rounded-xl bg-zinc-100 text-zinc-950 px-4 py-2.5 text-sm font-bold"
                   : "rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-400 hover:bg-white/6 hover:text-zinc-100 transition"
               }
             >

@@ -32,7 +32,7 @@ export default function Login() {
   };
 
   return (
-    <div className="grid min-h-screen bg-[#09090b] text-zinc-100 lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid min-h-screen bg-[var(--bg)] text-zinc-100 lg:grid-cols-[1.1fr_1fr]">
       <BrandPanel />
 
       {/* ── Sign-in side ── */}
@@ -102,7 +102,7 @@ export default function Login() {
               type="submit"
               id="btn-login"
               disabled={busy}
-              className="group mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-950 transition hover:bg-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-zinc-100"
+              className="group mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-950 transition hover:bg-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-zinc-100"
             >
               {busy ? (
                 <>
@@ -135,7 +135,7 @@ export default function Login() {
 /* ── Left half: identity, the plate motif, and what the system does ── */
 function BrandPanel() {
   return (
-    <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-white/[0.06] bg-[#0c0c0e] px-12 py-10 lg:flex xl:px-16">
+    <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-white/[0.06] bg-[var(--surface)] px-12 py-10 lg:flex xl:px-16">
       <div className="auth-enter flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Mark />
@@ -187,9 +187,9 @@ function BrandPanel() {
 function Plate() {
   return (
     <div className="inline-block">
-      <div className="relative overflow-hidden rounded-[10px] bg-zinc-100 p-[3px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]">
-        <div className="flex items-stretch rounded-[7px] border-2 border-zinc-900">
-          <div className="flex w-9 flex-col items-center justify-center gap-1 bg-[#1d3f9e] text-white">
+      <div className="relative overflow-hidden rounded-[10px] bg-[#f4f4f5] p-[3px] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]">
+        <div className="flex items-stretch rounded-[7px] border-2 border-[#18181b]">
+          <div className="flex w-9 flex-col items-center justify-center gap-1 bg-[#1d3f9e] text-on-accent">
             <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden>
               <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
               {Array.from({ length: 12 }, (_, i) => (
@@ -204,7 +204,7 @@ function Plate() {
             </svg>
             <span className="text-[9px] font-bold tracking-wider">IND</span>
           </div>
-          <span className="px-6 py-3 font-mono text-[2.1rem] font-bold leading-none tracking-[0.14em] text-zinc-950">
+          <span className="px-6 py-3 font-mono text-[2.1rem] font-bold leading-none tracking-[0.14em] text-[#09090b]">
             BARBICAN
           </span>
         </div>
@@ -269,7 +269,7 @@ function Field({ id, label, trailing, ...props }) {
       <div className="relative flex items-center">
         <input
           id={id}
-          className={`h-11 w-full rounded-lg border border-white/10 bg-[#111113] px-3.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20 ${
+          className={`h-11 w-full rounded-lg border border-white/10 bg-[var(--surface)] px-3.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20 ${
             trailing ? "pr-12" : ""
           }`}
           {...props}

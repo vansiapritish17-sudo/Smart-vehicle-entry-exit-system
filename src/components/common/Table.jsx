@@ -1,6 +1,6 @@
 export default function Table({ columns, rows, empty = "No records found." }) {
   return (
-    <div className="table-wrap rounded-2xl border border-white/8 bg-[#111113] overflow-hidden">
+    <div className="table-wrap rounded-2xl border border-white/8 bg-[var(--surface)] overflow-hidden">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-white/8">

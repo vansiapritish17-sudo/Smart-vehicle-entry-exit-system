@@ -33,7 +33,7 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-body"
-        className="animate-fade-up relative w-full max-w-md rounded-2xl border border-white/10 bg-[#1a1a1e] p-6 shadow-2xl shadow-black/50"
+        className="animate-fade-up relative w-full max-w-md rounded-2xl border border-white/10 bg-[var(--surface-2)] p-6 shadow-[var(--popover-shadow)]"
       >
         <div className="flex gap-4">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-500/15">

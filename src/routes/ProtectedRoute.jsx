@@ -25,7 +25,7 @@ function Splash() {
   }, []);
 
   return (
-    <div className="grid min-h-screen place-items-center bg-[#09090b]" aria-busy="true">
+    <div className="grid min-h-screen place-items-center bg-[var(--bg)]" aria-busy="true">
       {visible && (
         <div className="animate-fade-up flex flex-col items-center gap-4" role="status" aria-label="Loading">
           <Mark className="h-9 w-9" />

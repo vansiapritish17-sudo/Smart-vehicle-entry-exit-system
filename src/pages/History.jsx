@@ -14,6 +14,7 @@ import Badge from "../components/common/Badge";
 import { Input, Select } from "../components/common/Field";
 import Table from "../components/common/Table";
 import { useApp } from "../state/AppContext";
+import { chartColors, useTheme } from "../state/theme";
 import {
   averageStayMinutes,
   chartDataFromMovements,
@@ -25,7 +26,7 @@ import {
 const ChartTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
     return (
-      <div className="rounded-xl border border-white/10 bg-[#1a1a1e] px-3 py-2 text-xs shadow-xl">
+      <div className="rounded-xl border border-white/10 bg-[var(--surface-2)] px-3 py-2 text-xs shadow-xl">
         <p className="mb-1 font-semibold text-zinc-300">{label}</p>
         {payload.map((p) => (
           <p key={p.dataKey} style={{ color: p.stroke || p.fill }}>
@@ -40,6 +41,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 export default function History() {
   const { movements, configuration, currentUser } = useApp();
+  const chart = chartColors[useTheme().theme];
   const [filters, setFilters] = useState({ date: "", vehicle: "", type: "", gate: "" });
 
   const rows = useMemo(
@@ -108,13 +110,13 @@ export default function History() {
                     dataKey="day"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#52525b", fontSize: 11 }}
+                    tick={{ fill: chart.tick, fontSize: 11 }}
                   />
                   <YAxis hide />
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                  <Bar dataKey="entries" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="exits" fill="#a3e635" radius={[6, 6, 0, 0]} />
+                  <CartesianGrid stroke={chart.grid} vertical={false} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursor }} />
+                  <Bar dataKey="entries" fill={chart.entries} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="exits" fill={chart.exits} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -128,20 +130,20 @@ export default function History() {
                     dataKey="day"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#52525b", fontSize: 11 }}
+                    tick={{ fill: chart.tick, fontSize: 11 }}
                   />
                   <YAxis hide />
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid stroke={chart.grid} vertical={false} />
                   <Tooltip content={<ChartTooltip />} />
                   <Line
                     dataKey="entries"
-                    stroke="#8b5cf6"
+                    stroke={chart.entries}
                     strokeWidth={2}
                     dot={false}
                   />
                   <Line
                     dataKey="exits"
-                    stroke="#a3e635"
+                    stroke={chart.exits}
                     strokeWidth={2}
                     dot={false}
                   />

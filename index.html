@@ -9,7 +9,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
-  <body style="margin: 0; background: #09090b">
+  <body style="margin: 0">
+    <script>
+      // Apply the saved theme before the first paint, so a light-theme user
+      // never sees a dark flash while the app loads.
+      (function () {
+        var theme = "dark";
+        try { theme = localStorage.getItem("barbican-theme") || "dark"; } catch (e) {}
+        if (theme === "light") document.documentElement.dataset.theme = "light";
+        document.body.style.background = theme === "light" ? "#f4f4f5" : "#09090b";
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

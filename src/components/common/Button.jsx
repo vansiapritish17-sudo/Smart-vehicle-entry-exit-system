@@ -1,13 +1,13 @@
 export default function Button({ children, variant = "primary", className = "", ...props }) {
   const variants = {
     primary:
-      "bg-white text-black hover:bg-zinc-100 active:scale-[0.97]",
+      "bg-zinc-100 text-zinc-950 hover:bg-zinc-200 active:scale-[0.97]",
     secondary:
       "bg-transparent text-zinc-300 border border-white/15 hover:bg-white/8 hover:border-white/25 active:scale-[0.97]",
     violet:
-      "bg-violet-600 text-white hover:bg-violet-500 active:scale-[0.97]",
+      "bg-violet-600 text-on-accent hover:bg-violet-500 active:scale-[0.97]",
     danger:
-      "bg-red-600 text-white hover:bg-red-500 active:scale-[0.97]",
+      "bg-red-600 text-on-accent hover:bg-red-500 active:scale-[0.97]",
     ghost:
       "bg-transparent text-zinc-400 hover:text-zinc-100 hover:bg-white/6 active:scale-[0.97]",
   };

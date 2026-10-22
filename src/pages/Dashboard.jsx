@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { useApp } from "../state/AppContext";
+import { chartColors, useTheme } from "../state/theme";
 import {
   chartDataFromMovements,
   eventTime,
@@ -62,7 +63,7 @@ function MetricCard({ label, value, sub, icon: Icon, iconBg, iconColor }) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
     return (
-      <div className="rounded-xl border border-white/10 bg-[#1a1a1e] px-3 py-2 text-xs shadow-xl">
+      <div className="rounded-xl border border-white/10 bg-[var(--surface-2)] px-3 py-2 text-xs shadow-xl">
         <p className="mb-1 font-semibold text-zinc-300">{label}</p>
         {payload.map((p) => (
           <p key={p.dataKey} style={{ color: p.fill }}>
@@ -79,6 +80,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Dashboard() {
   const { vehicles, movements, alerts, configuration, currentUser } = useApp();
+  const chart = chartColors[useTheme().theme];
   const stats = getDashboardStats(vehicles, movements, alerts, configuration);
   const chartData = chartDataFromMovements(movements);
   const occupancyPercent = stats.maximumCapacity
@@ -118,7 +120,7 @@ export default function Dashboard() {
           <Link
             to="/movements/entry"
             id="btn-record-entry"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-black hover:bg-zinc-100 active:scale-95 transition"
+            className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-4 py-2 text-sm font-bold text-zinc-950 hover:bg-zinc-200 active:scale-95 transition"
           >
             <DoorOpen size={15} /> Record Entry
           </Link>
@@ -236,15 +238,15 @@ export default function Dashboard() {
                     dataKey="day"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#52525b", fontSize: 11 }}
+                    tick={{ fill: chart.tick, fontSize: 11 }}
                   />
                   <YAxis hide />
                   <Tooltip
                     content={<CustomTooltip />}
-                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    cursor={{ fill: chart.cursor }}
                   />
-                  <Bar dataKey="entries" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="exits" fill="#a3e635" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="entries" fill={chart.entries} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="exits" fill={chart.exits} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
