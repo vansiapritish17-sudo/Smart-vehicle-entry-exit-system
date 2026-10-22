@@ -1,48 +1,50 @@
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, DoorClosed, DoorOpen, ListFilter, Search, XCircle } from "lucide-react";
-import Badge from "../components/common/Badge";
-import Button from "../components/common/Button";
-import { Input, Select } from "../components/common/Field";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Check, ChevronDown, Minus, Search, X } from "lucide-react";
 import { useApp } from "../state/AppContext";
+import { eventTime, formatMinutes, localToday, minutesSince } from "../services/dashboardService";
 
-const entrySteps = [
-  "Receive vehicle number",
-  "Search vehicle records",
-  "Verify registration status",
-  "Check current status",
-  "Validate entry eligibility",
-  "Create movement record",
-  "Update vehicle status",
-  "Update occupancy count",
-  "Generate entry confirmation",
-];
-const exitSteps = [
-  "Receive vehicle number",
-  "Retrieve vehicle record",
-  "Check current status",
-  "Validate exit eligibility",
-  "Create exit movement",
-  "Update vehicle status",
-  "Calculate stay duration",
-  "Update occupancy count",
-  "Generate exit confirmation",
-];
+// Matches the backend's VehicleService.normalizeRegNo, so the live lookup agrees with the server.
+const normalize = (regNo) => (regNo ?? "").replace(/[\s-]/g, "").toUpperCase();
 
 export default function MovementForm({ mode }) {
-  const { configuration, vehicles, submitEntry, submitExit } = useApp();
+  const { configuration, vehicles, movements, submitEntry, submitExit } = useApp();
   const [form, setForm] = useState({ regNo: "", gate: "" });
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [now, setNow] = useState(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
   const pickerRef = useRef(null);
+  const plateRef = useRef(null);
   const isEntry = mode === "entry";
+  const accent = isEntry ? "text-violet-400" : "text-sky-400";
 
   const activeGates = configuration.gates.filter((gate) => gate.status === "ACTIVE");
+  const capacity = Number(configuration.maximumCapacity) || 0;
+  const inside = vehicles.filter((v) => v.currentStatus === "INSIDE").length;
+
   // Entry candidates are active vehicles outside; exit candidates are those inside.
   const candidates = vehicles.filter((v) =>
     isEntry ? v.registrationStatus === "ACTIVE" && v.currentStatus === "OUTSIDE" : v.currentStatus === "INSIDE"
+  );
+
+  const typed = normalize(form.regNo);
+  const match = typed ? vehicles.find((v) => normalize(v.regNo) === typed) : null;
+
+  // For an exit, the open entry this movement will close.
+  const openEntry = useMemo(() => {
+    if (isEntry || !match) return null;
+    return movements
+      .filter((m) => m.type === "ENTRY" && normalize(m.regNo) === normalize(match.regNo) && !m.exitTime)
+      .sort((a, b) => (b.entryTime ?? "").localeCompare(a.entryTime ?? ""))[0] ?? null;
+  }, [isEntry, match, movements]);
+
+  const recent = useMemo(
+    () =>
+      movements
+        .filter((m) => m.type === (isEntry ? "ENTRY" : "EXIT"))
+        .sort((a, b) => eventTime(b).localeCompare(eventTime(a)))
+        .slice(0, 6),
+    [isEntry, movements]
   );
 
   const query = pickerQuery.trim().toUpperCase();
@@ -86,11 +88,6 @@ export default function MovementForm({ mode }) {
     setForm((f) => ({ ...f, regNo: "" }));
   }, [mode]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 30000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
@@ -98,183 +95,427 @@ export default function MovementForm({ mode }) {
     const response = await (isEntry ? submitEntry(form) : submitExit(form));
     setBusy(false);
     setResult(response);
-    if (response.ok) setForm((f) => ({ ...f, regNo: "" }));
+    if (response.ok) {
+      setForm((f) => ({ ...f, regNo: "" }));
+      plateRef.current?.focus();
+    }
   };
 
-  const ModeIcon = isEntry ? DoorOpen : DoorClosed;
+  const pick = (regNo) => {
+    setForm((f) => ({ ...f, regNo }));
+    setPickerOpen(false);
+    plateRef.current?.focus();
+  };
+
+  // The same rules the server applies, evaluated live against the register.
+  // "idle" until there is a plate to check.
+  const verdict = (ok) => (ok ? "pass" : "fail");
+  const checks = isEntry
+    ? [
+        {
+          label: "In the vehicle register",
+          state: typed ? verdict(Boolean(match)) : "idle",
+          detail: typed && !match ? "Not registered — the attempt will be logged as unauthorised" : null,
+        },
+        {
+          label: "Registration is active",
+          state: match ? verdict(match.registrationStatus === "ACTIVE") : "idle",
+          detail: match && match.registrationStatus !== "ACTIVE" ? "Registration is inactive" : null,
+        },
+        {
+          label: "Not already inside",
+          state: match ? verdict(match.currentStatus !== "INSIDE") : "idle",
+          detail: match?.currentStatus === "INSIDE" ? "Already recorded inside — duplicate entry" : null,
+        },
+        {
+          label: "Space available",
+          state: verdict(inside < capacity),
+          detail: `${inside} of ${capacity} spaces in use`,
+        },
+      ]
+    : [
+        {
+          label: "In the vehicle register",
+          state: typed ? verdict(Boolean(match)) : "idle",
+          detail: typed && !match ? "Not registered — the exit will be refused" : null,
+        },
+        {
+          label: "Recorded inside",
+          state: match ? verdict(match.currentStatus === "INSIDE") : "idle",
+          detail: match && match.currentStatus !== "INSIDE" ? "No open entry for this vehicle" : null,
+        },
+      ];
+  const blocked = checks.some((c) => c.state === "fail");
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[400px_1fr]">
-      {/* Form card */}
-      <div className="glass-card">
-        <div className="mb-5 flex items-center gap-3">
-          <div className={`grid h-10 w-10 place-items-center rounded-full ${isEntry ? "bg-violet-500/15" : "bg-sky-500/15"}`}>
-            <ModeIcon size={18} className={isEntry ? "text-violet-300" : "text-sky-300"} />
-          </div>
-          <div>
-            <h1 className="font-bold text-zinc-100">
-              {isEntry ? "Record Vehicle Entry" : "Record Vehicle Exit"}
-            </h1>
-            <p className="text-xs text-zinc-500">Vehicle movement management</p>
-          </div>
+    <div className="grid gap-6">
+      {/* ── Page header ── */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className={`font-mono text-[11px] uppercase tracking-[0.2em] ${accent}`}>
+            Gate operations · {isEntry ? "Inbound" : "Outbound"}
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">
+            {isEntry ? "Record entry" : "Record exit"}
+          </h1>
         </div>
+        <Occupancy inside={inside} capacity={capacity} threshold={Number(configuration.alertThreshold) || 80} />
+      </header>
 
-        <form onSubmit={submit} className="grid gap-4">
-          <div ref={pickerRef} className="relative">
-            <Input
-              label="Vehicle Registration Number"
-              value={form.regNo}
-              onChange={(e) => setForm({ ...form, regNo: e.target.value.toUpperCase() })}
-              required
-              placeholder="e.g. MH12AB1234"
-              className="pr-11"
-            />
-            {/* Pick from the registered vehicles this action applies to */}
-            <button
-              type="button"
-              onClick={() => setPickerOpen((open) => !open)}
-              title={isEntry ? "Select a registered vehicle" : "Select a vehicle inside"}
-              aria-label="Select registered vehicle"
-              aria-expanded={pickerOpen}
-              className={`absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg transition ${
-                pickerOpen ? "bg-violet-500/20 text-violet-300" : "text-zinc-500 hover:bg-white/8 hover:text-zinc-200"
-              }`}
-            >
-              <ListFilter size={15} />
-            </button>
-            {pickerOpen && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1.5 rounded-xl border border-white/10 bg-[var(--surface-2)] p-2 shadow-xl shadow-black/40">
-                <div className="mb-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5">
-                  <Search size={13} className="text-zinc-500" />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* ── Console ── */}
+        <section className="glass-card p-0!">
+          <form onSubmit={submit}>
+            <div className="grid gap-7 p-5 sm:p-6">
+              {/* Vehicle */}
+              <div ref={pickerRef} className="relative">
+                <FieldLabel n="01" htmlFor="movement-regno">Registration number</FieldLabel>
+                <div className="relative mt-2.5">
                   <input
+                    id="movement-regno"
+                    ref={plateRef}
+                    value={form.regNo}
+                    onChange={(e) => setForm({ ...form, regNo: e.target.value.toUpperCase() })}
+                    required
                     autoFocus
-                    value={pickerQuery}
-                    onChange={(e) => setPickerQuery(e.target.value)}
-                    placeholder="Search number or owner"
-                    className="w-full bg-transparent text-xs text-zinc-100 outline-none placeholder:text-zinc-600"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="MH12AB1234"
+                    className="h-14 w-full rounded-lg border border-white/10 bg-[var(--bg)] pl-4 pr-36 font-mono text-xl font-bold uppercase tracking-[0.14em] text-zinc-100 outline-none transition placeholder:font-medium placeholder:text-zinc-700 hover:border-white/20 focus:border-violet-500 focus:ring-[3px] focus:ring-violet-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen((open) => !open)}
+                    aria-expanded={pickerOpen}
+                    aria-haspopup="listbox"
+                    className={`absolute right-2 top-1/2 flex h-9 -translate-y-1/2 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition ${
+                      pickerOpen
+                        ? "border-violet-500/40 bg-violet-500/10 text-violet-300"
+                        : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-100"
+                    }`}
+                  >
+                    Registered
+                    <span className="font-mono text-[10px] text-zinc-500">{candidates.length}</span>
+                    <ChevronDown size={13} className={`transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
+                  </button>
                 </div>
-                <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                  {isEntry ? "Registered vehicles outside" : "Vehicles inside"}
-                </p>
-                <ul className="max-h-56 overflow-y-auto">
-                  {pickerMatches.length === 0 && (
-                    <li className="px-2 py-3 text-center text-xs text-zinc-500">No matching vehicles</li>
-                  )}
-                  {pickerMatches.map((v) => (
-                    <li key={v.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({ ...f, regNo: v.regNo }));
-                          setPickerOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition ${
-                          form.regNo === v.regNo ? "bg-violet-500/15 text-violet-300" : "text-zinc-200 hover:bg-white/8"
-                        }`}
-                      >
-                        <span className="font-mono text-xs font-semibold">{v.regNo}</span>
-                        <span className="truncate text-[11px] text-zinc-500">
-                          {[v.owner, v.type].filter(Boolean).join(" · ")}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <Select
-            label="Gate"
-            value={form.gate}
-            onChange={(e) => setForm({ ...form, gate: e.target.value })}
-            required
-          >
-            {activeGates.length === 0 && <option value="">No active gates</option>}
-            {activeGates.map((gate) => (
-              <option key={gate.id}>{gate.name}</option>
-            ))}
-          </Select>
-          <Input
-            label={isEntry ? "Entry Time" : "Exit Time"}
-            value={now.toLocaleString("en-IN", { hour12: false, dateStyle: "medium", timeStyle: "short" })}
-            readOnly
-          />
-          <Button
-            type="submit"
-            variant={isEntry ? "primary" : "secondary"}
-            className="w-full py-2.5"
-            disabled={busy || !form.gate}
-          >
-            <CheckCircle2 size={15} />
-            {busy ? "Validating…" : `Validate & Record ${isEntry ? "Entry" : "Exit"}`}
-          </Button>
-        </form>
 
-        {/* Result */}
-        {result && (
-          <div
-            className={`mt-5 rounded-xl border p-4 ${
-              result.ok
-                ? "border-lime-400/20 bg-lime-400/8"
-                : "border-red-500/20 bg-red-500/8"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {result.ok ? (
-                <CheckCircle2 size={16} className="text-lime-400" />
-              ) : (
-                <XCircle size={16} className="text-red-400" />
-              )}
-              <p
-                className={`text-sm font-bold ${result.ok ? "text-lime-300" : "text-red-300"}`}
-              >
-                {result.message}
-              </p>
+                {pickerOpen && (
+                  <VehiclePicker
+                    title={isEntry ? "Registered vehicles outside" : "Vehicles inside"}
+                    query={pickerQuery}
+                    setQuery={setPickerQuery}
+                    matches={pickerMatches}
+                    selected={typed}
+                    onPick={pick}
+                  />
+                )}
+
+                <RegisterLookup typed={typed} match={match} openEntry={openEntry} isEntry={isEntry} />
+              </div>
+
+              {/* Gate */}
+              <div>
+                <FieldLabel n="02">Gate</FieldLabel>
+                {activeGates.length === 0 ? (
+                  <p className="mt-2.5 border-l-2 border-amber-500 bg-amber-500/[0.07] px-3.5 py-2.5 text-sm text-amber-200">
+                    No gate is open. An administrator can open one in Settings.
+                  </p>
+                ) : (
+                  <div role="radiogroup" aria-label="Gate" className="mt-2.5 flex flex-wrap gap-2">
+                    {activeGates.map((gate) => {
+                      const selected = form.gate === gate.name;
+                      return (
+                        <button
+                          key={gate.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setForm((f) => ({ ...f, gate: gate.name }))}
+                          className={`h-10 rounded-lg border px-4 text-sm font-medium transition ${
+                            selected
+                              ? "border-zinc-100 bg-zinc-100 text-zinc-950"
+                              : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-100"
+                          }`}
+                        >
+                          {gate.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-            {result.movement && (
-              <div className="mt-3 grid gap-2 text-xs text-zinc-400 sm:grid-cols-2">
-                <span>
-                  Vehicle: <b className="text-zinc-200">{result.movement.regNo}</b>
-                </span>
-                <span>
-                  Gate: <b className="text-zinc-200">{result.movement.gate}</b>
-                </span>
-                <span className="flex items-center gap-1">
-                  Type: <Badge>{result.movement.type}</Badge>
-                </span>
-                <span>
-                  Duration:{" "}
-                  <b className="text-zinc-200">
-                    {result.movement.stayDuration || "In progress"}
-                  </b>
-                </span>
-              </div>
-            )}
-            {result.alert && (
-              <div className="mt-3 flex gap-2">
-                <Badge>{result.alert.type}</Badge>
-                <Badge>{result.alert.severity}</Badge>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Workflow steps */}
-      <div className="glass-card">
-        <h2 className="mb-5 font-bold text-zinc-100">Workflow steps</h2>
-        <ol className="grid gap-3">
-          {(isEntry ? entrySteps : exitSteps).map((step, i) => (
-            <li key={step} className="flex items-center gap-3 text-sm text-zinc-400">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/8 text-xs font-bold text-zinc-300">
-                {i + 1}
-              </span>
-              {step}
-            </li>
-          ))}
-        </ol>
+            {/* Action bar */}
+            <div className="flex flex-col-reverse gap-3 border-t border-white/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-xs leading-relaxed text-zinc-500">
+                {blocked
+                  ? "This attempt will be refused and logged as an alert."
+                  : "Time is stamped by the server when recorded."}
+              </p>
+              <button
+                type="submit"
+                disabled={busy || !form.gate}
+                className="group flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-5 text-sm font-semibold text-zinc-950 transition hover:bg-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-zinc-100"
+              >
+                {busy ? (
+                  <>
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-950/20 border-t-zinc-950" />
+                    Validating…
+                  </>
+                ) : (
+                  <>
+                    {isEntry ? "Record entry" : "Record exit"}
+                    <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {result && <Receipt result={result} onDismiss={() => setResult(null)} />}
+        </section>
+
+        {/* ── Side column ── */}
+        <aside className="grid gap-6">
+          <section className="glass-card">
+            <SectionTitle>Gate checks</SectionTitle>
+            <ul className="mt-4 grid gap-3.5">
+              {checks.map((check) => (
+                <CheckRow key={check.label} {...check} />
+              ))}
+            </ul>
+            <p className="mt-5 border-t border-white/[0.06] pt-3.5 text-[11px] leading-relaxed text-zinc-600">
+              Checked against the live register. The server makes the final decision.
+            </p>
+          </section>
+
+          <section className="glass-card">
+            <SectionTitle>{isEntry ? "Recent entries" : "Recent exits"}</SectionTitle>
+            {recent.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">Nothing recorded yet.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-white/[0.06]">
+                {recent.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-semibold tracking-wider text-zinc-200">{m.regNo}</p>
+                      <p className="truncate text-xs text-zinc-500">{m.gate}</p>
+                    </div>
+                    <Stamp value={eventTime(m)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
       </div>
     </div>
+  );
+}
+
+/* ── Compact occupancy readout for the header ── */
+function Occupancy({ inside, capacity, threshold }) {
+  const percent = capacity ? Math.min(100, Math.round((inside / capacity) * 100)) : 0;
+  const high = percent >= threshold;
+  return (
+    <div className="w-full sm:w-60">
+      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+        <span>Occupancy</span>
+        <span className="tabular-nums">
+          <span className={high ? "text-red-300" : "text-zinc-200"}>{inside}</span> / {capacity}
+        </span>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${high ? "bg-red-500" : "bg-lime-300"}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FieldLabel({ n, htmlFor, children }) {
+  const Tag = htmlFor ? "label" : "p";
+  return (
+    <Tag htmlFor={htmlFor} className="flex items-baseline gap-2 text-[13px] font-medium text-zinc-300">
+      <span className="font-mono text-[11px] text-lime-300">{n}</span>
+      {children}
+    </Tag>
+  );
+}
+
+function SectionTitle({ children }) {
+  return <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">{children}</h2>;
+}
+
+/* ── What the register says about the typed plate ── */
+function RegisterLookup({ typed, match, openEntry, isEntry }) {
+  if (!typed) {
+    return <p className="mt-2.5 text-xs text-zinc-600">Type the plate, or choose from registered vehicles.</p>;
+  }
+  if (!match) {
+    return (
+      <p className="mt-2.5 flex items-center gap-2 text-xs text-amber-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+        Not found in the vehicle register
+      </p>
+    );
+  }
+  const vehicleLine = [match.type, match.model, match.color].filter(Boolean).join(" · ");
+  const onSite = !isEntry && openEntry ? formatMinutes(minutesSince(openEntry.entryTime)) : null;
+  return (
+    <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm sm:grid-cols-4">
+      <Detail label="Owner" value={match.owner} />
+      <Detail label="Vehicle" value={vehicleLine || "—"} />
+      <Detail
+        label="Registration"
+        value={match.registrationStatus === "ACTIVE" ? "Active" : "Inactive"}
+        tone={match.registrationStatus === "ACTIVE" ? "text-lime-300" : "text-red-300"}
+      />
+      {onSite ? (
+        <Detail label="On site for" value={onSite} />
+      ) : (
+        <Detail label="Location" value={match.currentStatus === "INSIDE" ? "Inside" : "Outside"} />
+      )}
+    </dl>
+  );
+}
+
+function Detail({ label, value, tone = "text-zinc-200" }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] text-zinc-500">{label}</dt>
+      <dd className={`mt-0.5 truncate font-medium ${tone}`}>{value}</dd>
+    </div>
+  );
+}
+
+function VehiclePicker({ title, query, setQuery, matches, selected, onPick }) {
+  return (
+    <div className="absolute left-0 right-0 z-20 mt-1.5 overflow-hidden rounded-lg border border-white/10 bg-[var(--surface-2)] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.7)]">
+      <div className="flex items-center gap-2 border-b border-white/[0.06] px-3">
+        <Search size={14} className="shrink-0 text-zinc-500" />
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search plate or owner"
+          aria-label="Search registered vehicles"
+          className="h-10 w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+        />
+      </div>
+      <p className="px-3 pb-1 pt-2.5 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-600">{title}</p>
+      <ul role="listbox" className="max-h-60 overflow-y-auto px-1.5 pb-1.5">
+        {matches.length === 0 && <li className="px-2 py-4 text-center text-xs text-zinc-500">No matching vehicles</li>}
+        {matches.map((v) => {
+          const active = normalize(v.regNo) === selected;
+          return (
+            <li key={v.id} role="option" aria-selected={active}>
+              <button
+                type="button"
+                onClick={() => onPick(v.regNo)}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left transition ${
+                  active ? "bg-violet-500/15 text-violet-200" : "text-zinc-200 hover:bg-white/[0.06]"
+                }`}
+              >
+                <span className="font-mono text-sm font-semibold tracking-wider">{v.regNo}</span>
+                <span className="truncate text-xs text-zinc-500">{[v.owner, v.type].filter(Boolean).join(" · ")}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function CheckRow({ label, state, detail }) {
+  const icon = {
+    pass: { el: <Check size={12} strokeWidth={3} />, cls: "bg-lime-300/15 text-lime-300" },
+    fail: { el: <X size={12} strokeWidth={3} />, cls: "bg-red-500/15 text-red-300" },
+    idle: { el: <Minus size={12} strokeWidth={3} />, cls: "bg-white/[0.06] text-zinc-600" },
+  }[state];
+  return (
+    <li className="flex gap-3">
+      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${icon.cls}`}>{icon.el}</span>
+      <div className="min-w-0">
+        <p className={`text-sm ${state === "idle" ? "text-zinc-500" : "text-zinc-200"}`}>{label}</p>
+        {detail && (
+          <p className={`mt-0.5 text-xs ${state === "fail" ? "text-red-300/80" : "text-zinc-500"}`}>{detail}</p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/* ── The server's verdict, laid out like a gate slip ── */
+function Receipt({ result, onDismiss }) {
+  const m = result.movement;
+  const rows = m
+    ? [
+        ["Vehicle", m.regNo],
+        ["Owner", m.owner],
+        ["Gate", m.gate],
+        [m.type === "EXIT" ? "Exit time" : "Entry time", m.type === "EXIT" ? m.exitTime : m.entryTime],
+        ...(m.type === "EXIT" ? [["Stay", m.stayDuration]] : []),
+        ["Operator", m.operator],
+      ].filter(([, v]) => v)
+    : result.alert
+      ? [
+          ["Vehicle", result.alert.vehicle],
+          ["Gate", result.alert.gate],
+          ["Alert", result.alert.type?.replaceAll("_", " ")],
+          ["Severity", result.alert.severity],
+        ].filter(([, v]) => v)
+      : [];
+
+  return (
+    <div
+      role="status"
+      className={`animate-fade-up rounded-b-[15px] border-t border-l-2 border-t-white/[0.06] px-5 py-4 sm:px-6 ${
+        result.ok ? "border-l-lime-300 bg-lime-300/[0.04]" : "border-l-red-500 bg-red-500/[0.05]"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className={`font-mono text-[11px] uppercase tracking-[0.16em] ${result.ok ? "text-lime-300" : "text-red-300"}`}>
+            {result.ok ? "Recorded" : "Refused"}
+          </p>
+          <p className="mt-1 text-sm font-medium text-zinc-100">{result.message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-200"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      {rows.length > 0 && (
+        <dl className="mt-3.5 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3">
+          {rows.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="text-[11px] text-zinc-500">{label}</dt>
+              <dd className="mt-0.5 truncate font-mono text-[13px] text-zinc-200">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+/* Time of day for today's records, date and time for older ones. */
+function Stamp({ value }) {
+  if (!value) return <span className="font-mono text-xs text-zinc-600">—</span>;
+  const today = value.startsWith(localToday());
+  return (
+    <time className="shrink-0 text-right font-mono text-xs tabular-nums text-zinc-500" dateTime={value.replace(" ", "T")}>
+      {today ? value.slice(11, 16) : `${value.slice(8, 10)}/${value.slice(5, 7)} ${value.slice(11, 16)}`}
+    </time>
   );
 }
