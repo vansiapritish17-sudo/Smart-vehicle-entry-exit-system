@@ -183,7 +183,9 @@ select option:disabled {
   to   { opacity: 1; transform: none; }
 }
 .page-enter {
-  animation: page-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* backwards, not both: once it ends nothing stays applied, so the page never keeps a
+     transform that would make it the frame for position: fixed pop-ups. */
+  animation: page-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation: none; }

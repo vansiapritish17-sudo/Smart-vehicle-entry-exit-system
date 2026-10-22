@@ -31,12 +31,20 @@ export function Textarea({ label, className = "", ...props }) {
   );
 }
 
-/** A row of mutually exclusive choices, for filters with only a few options. */
-export function Segmented({ label, value, onChange, options }) {
+/**
+ * A row of mutually exclusive choices, for filters with only a few options.
+ * `fill` stretches it to the container with equal-width options.
+ */
+export function Segmented({ label, value, onChange, options, fill = false }) {
   return (
     <div className="grid gap-1.5">
       {label && <span className="text-[13px] font-medium text-zinc-400">{label}</span>}
-      <div role="radiogroup" aria-label={label} className="inline-flex w-fit rounded-lg border border-white/10 p-0.5">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className={`rounded-lg border border-white/10 p-0.5 ${fill ? "grid w-full" : "inline-flex w-fit"}`}
+        style={fill ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}
+      >
         {options.map(([optionValue, optionLabel]) => {
           const selected = value === optionValue;
           return (
@@ -46,7 +54,7 @@ export function Segmented({ label, value, onChange, options }) {
               role="radio"
               aria-checked={selected}
               onClick={() => onChange(optionValue)}
-              className={`h-8 rounded-md px-3 text-xs font-medium transition ${
+              className={`h-8 whitespace-nowrap rounded-md px-3 text-xs font-medium transition ${
                 selected ? "bg-zinc-100 text-zinc-950" : "text-zinc-400 hover:text-zinc-100"
               }`}
             >

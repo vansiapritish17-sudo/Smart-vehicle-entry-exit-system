@@ -253,6 +253,9 @@ export function AppProvider({ children }) {
   /* ── Alerts ── */
   const resolveAlert = (id) => run(() => alertsApi.resolve(id), "Alert marked as resolved.");
 
+  /* ── History ── */
+  const clearHistory = (olderThanDays) => run(() => movementsApi.clearHistory(olderThanDays));
+
   /* ── Configuration ── */
   const saveConfiguration = (updates) => run(() => configApi.save(updates), "System configuration updated.");
 
@@ -296,6 +299,7 @@ export function AppProvider({ children }) {
       submitEntry,
       submitExit,
       resolveAlert,
+      clearHistory,
       saveConfiguration,
       addUser,
       updateUser,

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 import Button from "./Button";
 
@@ -6,7 +7,17 @@ import Button from "./Button";
  * Modal confirmation for destructive actions. Focus starts on Cancel so a stray
  * Enter never confirms; Escape and the backdrop dismiss it while not busy.
  */
-export default function ConfirmDialog({ open, title, children, confirmLabel, busyLabel = "Working…", busy = false, onConfirm, onCancel }) {
+export default function ConfirmDialog({
+  open,
+  title,
+  children,
+  confirmLabel,
+  busyLabel = "Working…",
+  busy = false,
+  confirmDisabled = false,
+  onConfirm,
+  onCancel,
+}) {
   const cancelRef = useRef(null);
 
   // Focus once on open, not on every re-render from live data.
@@ -25,7 +36,9 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
 
   if (!open) return null;
 
-  return (
+  // Portalled to <body>: an animated ancestor (the page transition) would otherwise
+  // become the box that "fixed" positions against, pushing the dialog off-centre.
+  return createPortal(
     <div className="fixed inset-0 z-[60] grid place-items-center px-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={busy ? undefined : onCancel} />
       <div
@@ -48,11 +61,12 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
           <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={onConfirm} disabled={busy}>
+          <Button variant="danger" onClick={onConfirm} disabled={busy || confirmDisabled}>
             {busy ? busyLabel : confirmLabel}
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

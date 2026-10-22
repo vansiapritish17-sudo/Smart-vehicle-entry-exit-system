@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, History as HistoryIcon } from "lucide-react";
+import { Download, History as HistoryIcon, Trash2 } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -13,7 +13,8 @@ import {
 } from "recharts";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
-import { Input, Select } from "../components/common/Field";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import { Input, Segmented, Select } from "../components/common/Field";
 import PageHeader, { EmptyState, Plate, SectionTitle } from "../components/common/PageHeader";
 import Table from "../components/common/Table";
 import { useApp } from "../state/AppContext";
@@ -55,8 +56,32 @@ const CSV_COLUMNS = [
   { label: "Operator", value: (m) => m.operator },
 ];
 
+const CLEAR_RANGES = [
+  [30, "30+ days"],
+  [90, "90+ days"],
+  [0, "Everything"],
+];
+
+/** Records a clear would remove — the same rule the server applies. */
+function clearable(movements, olderThanDays) {
+  let cutoff = null;
+  if (olderThanDays > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() - olderThanDays);
+    const pad = (n) => String(n).padStart(2, "0");
+    cutoff = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00`;
+  }
+  return movements.filter((m) => {
+    const openEntry = m.type === "ENTRY" && !m.exitTime;
+    return !openEntry && (!cutoff || eventTime(m) < cutoff);
+  });
+}
+
 export default function History() {
-  const { movements, configuration, currentUser, loading } = useApp();
+  const { movements, configuration, currentUser, loading, clearHistory } = useApp();
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearAge, setClearAge] = useState(30);
+  const [clearing, setClearing] = useState(false);
   const chart = chartColors[useTheme().theme];
   const isAdmin = currentUser.role === "Administrator";
   const [filters, setFilters] = useState({ date: "", vehicle: "", type: "", gate: "" });
@@ -88,6 +113,15 @@ export default function History() {
 
   const exportRows = () => downloadCsv(`barbican-movements-${localToday()}.csv`, CSV_COLUMNS, rows);
 
+  const toClear = clearable(movements, clearAge);
+  const openVisits = movements.filter((m) => m.type === "ENTRY" && !m.exitTime).length;
+  const confirmClear = async () => {
+    setClearing(true);
+    const result = await clearHistory(clearAge);
+    setClearing(false);
+    if (result.ok) setClearOpen(false);
+  };
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -95,9 +129,21 @@ export default function History() {
         title={isAdmin ? "History & analytics" : "History"}
         description="Every recorded entry and exit, with the trends behind them."
         actions={
-          <Button variant="secondary" onClick={exportRows} disabled={!rows.length}>
-            <Download size={14} /> Export CSV
-          </Button>
+          <>
+            <Button variant="secondary" onClick={exportRows} disabled={!rows.length}>
+              <Download size={14} /> Export CSV
+            </Button>
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                onClick={() => setClearOpen(true)}
+                disabled={!movements.length}
+                className="hover:!bg-red-500/10 hover:!text-red-300"
+              >
+                <Trash2 size={14} /> Clear history
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -219,6 +265,44 @@ export default function History() {
           }
         />
       </section>
+
+      <ConfirmDialog
+        open={clearOpen}
+        title="Clear movement history?"
+        confirmLabel={toClear.length ? `Delete ${toClear.length} record${toClear.length === 1 ? "" : "s"}` : "Nothing to delete"}
+        busyLabel="Clearing…"
+        busy={clearing}
+        confirmDisabled={!toClear.length}
+        onConfirm={confirmClear}
+        onCancel={() => setClearOpen(false)}
+      >
+        <div className="grid gap-4">
+          <Segmented label="Delete records" value={clearAge} onChange={setClearAge} options={CLEAR_RANGES} fill />
+          {toClear.length ? (
+            <p>
+              <span className="font-medium text-zinc-100">{toClear.length}</span> of {movements.length} records will be
+              permanently deleted. This can't be undone.
+            </p>
+          ) : (
+            <p>
+              No records are {clearAge ? `older than ${clearAge} days` : "complete yet"} — nothing would be deleted.
+            </p>
+          )}
+          {openVisits > 0 && (
+            <p className="text-zinc-500">
+              The open entry of the {openVisits} vehicle{openVisits === 1 ? "" : "s"} inside now is kept, so their exits
+              still record the stay.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => downloadCsv(`barbican-movements-${localToday()}.csv`, CSV_COLUMNS, movements)}
+            className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-zinc-300 underline decoration-white/20 underline-offset-2 hover:decoration-zinc-300"
+          >
+            <Download size={12} /> Export all records first
+          </button>
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }

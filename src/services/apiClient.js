@@ -80,6 +80,8 @@ export const movementsApi = {
     apiClient.post("/movements/entry", { regNo, gate }, movementOutcome).then((r) => r.data),
   exit: (regNo, gate) =>
     apiClient.post("/movements/exit", { regNo, gate }, movementOutcome).then((r) => r.data),
+  clearHistory: (olderThanDays) =>
+    apiClient.delete("/movements", { params: { olderThanDays } }).then((r) => r.data),
 };
 
 export const alertsApi = {
