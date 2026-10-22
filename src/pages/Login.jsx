@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import Mark from "../components/common/Mark";
 import apiClient from "../services/apiClient";
 import { useApp } from "../state/AppContext";
 
@@ -256,18 +257,6 @@ function ServerStatus() {
       <span className={`h-1.5 w-1.5 rounded-full ${view.dot}`} />
       {view.text}
     </span>
-  );
-}
-
-/* ── Brand mark: a crenellated gatehouse with an open arch ── */
-function Mark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" aria-hidden>
-      <path
-        d="M3 21V5h3v2.5h2V5h3v2.5h2V5h3v2.5h2V5h3v16h-6.5v-5a2.5 2.5 0 0 0-5 0v5Z"
-        fill="#a3e635"
-      />
-    </svg>
   );
 }
 

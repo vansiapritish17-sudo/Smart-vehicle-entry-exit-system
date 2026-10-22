@@ -48,7 +48,8 @@ apiClient.interceptors.response.use(
     const message = err.response
       ? err.response.data?.message || `Request failed (${status}).`
       : "Cannot reach the server. Check that the backend is running and try again.";
-    return Promise.reject(new Error(message));
+    // Keep the status so callers can tell a refusal (401/403) from an unreachable server.
+    return Promise.reject(Object.assign(new Error(message), { status }));
   }
 );
 

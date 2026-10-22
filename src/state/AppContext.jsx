@@ -70,23 +70,36 @@ export function AppProvider({ children }) {
         return;
       }
 
+      let claims;
       try {
-        const claims = await getSessionClaims();
-        // Show the app as soon as the token is readable, then enrich from the API.
-        setCurrentUser((prev) => prev ?? claims);
+        claims = await getSessionClaims();
+      } catch (err) {
+        console.error("session:", err);
+        await firebaseLogout().catch(() => {});
+        setCurrentUser(null);
+        setAuthReady(true);
+        return;
+      }
 
+      // Firebase restores the session locally and the role is in the token, so the
+      // app can show now. The profile call below can take up to a minute while a
+      // free-tier server wakes, and must not hold the screen hostage.
+      setCurrentUser((prev) => prev ?? claims);
+      setAuthReady(true);
+
+      try {
         const res = await authApi.me();
         if (res.ok) setCurrentUser({ ...claims, ...res.data });
       } catch (err) {
         console.error("session:", err);
-        // The token is valid but the backend rejected it (deactivated account,
-        // missing role claim) or is unreachable — end the session rather than
-        // show an app that cannot save anything.
-        await firebaseLogout().catch(() => {});
-        setCurrentUser(null);
-        notify(err.message ?? "Your session could not be verified.", "warning");
-      } finally {
-        setAuthReady(true);
+        // The backend refused the token (deactivated account, missing role claim):
+        // end the session. An unreachable server is not a refusal — keep the
+        // session, and any write will report the outage when it is attempted.
+        if (err.status === 401 || err.status === 403) {
+          await firebaseLogout().catch(() => {});
+          setCurrentUser(null);
+          notify(err.message ?? "Your session could not be verified.", "warning");
+        }
       }
     });
 
