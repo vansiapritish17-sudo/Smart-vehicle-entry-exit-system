@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../services/firebaseApp";
 import {
+  getIdToken,
   getSessionClaims,
   login as firebaseLogin,
   logout as firebaseLogout,
@@ -217,6 +218,7 @@ export function AppProvider({ children }) {
   const addVehicle = (payload) => run(() => vehiclesApi.create(payload), "Vehicle registered successfully.");
   const updateVehicle = (id, payload) => run(() => vehiclesApi.update(id, payload), "Vehicle updated.");
   const toggleVehicle = (id) => run(() => vehiclesApi.toggle(id));
+  const deleteVehicle = (id) => run(() => vehiclesApi.remove(id));
 
   /* ── Movements ──
      A refused movement still resolves (HTTP 422) with the alert the backend raised,
@@ -247,7 +249,13 @@ export function AppProvider({ children }) {
     return result;
   };
   const addUser = async (payload) => afterUsers(await run(() => usersApi.create(payload)));
-  const updateUser = async (id, payload) => afterUsers(await run(() => usersApi.update(id, payload)));
+  const updateUser = async (id, payload) => {
+    const result = await afterUsers(await run(() => usersApi.update(id, payload)));
+    // Editing your own account: mint a token with the new claims. The token
+    // listener then reloads the profile, so the new name shows everywhere at once.
+    if (result.ok && id === currentUser?.id) await getIdToken(true).catch(() => {});
+    return result;
+  };
   const resetUserPassword = async (id) => afterUsers(await run(() => usersApi.resetPassword(id)));
   const toggleUser = async (id) => afterUsers(await run(() => usersApi.toggle(id)));
 
@@ -271,6 +279,7 @@ export function AppProvider({ children }) {
       addVehicle,
       updateVehicle,
       toggleVehicle,
+      deleteVehicle,
       submitEntry,
       submitExit,
       resolveAlert,

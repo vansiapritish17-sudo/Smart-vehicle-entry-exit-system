@@ -67,6 +67,7 @@ export const vehiclesApi = {
   create: (vehicle)            => apiClient.post("/vehicles", vehicle).then((r) => r.data),
   update: (id, vehicle)        => apiClient.put(`/vehicles/${id}`, vehicle).then((r) => r.data),
   toggle: (id)                 => apiClient.put(`/vehicles/${id}/toggle`).then((r) => r.data),
+  remove: (id)                 => apiClient.delete(`/vehicles/${id}`).then((r) => r.data),
 };
 
 // A refused movement (unregistered, duplicate, full…) comes back as 422 with the

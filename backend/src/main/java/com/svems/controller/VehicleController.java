@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Vehicle register. Reads are open to any signed-in user; writes (POST, PUT) are
+ * Vehicle register. Reads are open to any signed-in user; writes (POST, PUT, DELETE) are
  * Administrator-only via `svems.security.admin-paths`. Errors are mapped to
  * responses by GlobalExceptionHandler.
  */
@@ -55,5 +55,11 @@ public class VehicleController {
     public ApiResponse<Vehicle> toggle(@PathVariable String id) throws Exception {
         Vehicle vehicle = vehicleService.toggleRegistration(id);
         return ApiResponse.success("Vehicle " + vehicle.getRegNo() + " is now " + vehicle.getRegistrationStatus() + ".", vehicle);
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Vehicle> delete(@PathVariable String id) throws Exception {
+        Vehicle vehicle = vehicleService.delete(id);
+        return ApiResponse.success("Vehicle " + vehicle.getRegNo() + " deleted.", vehicle);
     }
 }

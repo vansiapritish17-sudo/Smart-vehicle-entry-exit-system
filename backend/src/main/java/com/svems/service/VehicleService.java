@@ -88,6 +88,20 @@ public class VehicleService {
         return vehicle;
     }
 
+    /**
+     * Remove a vehicle from the register. Its movements and alerts are kept for the
+     * audit trail. A vehicle inside is refused, since deleting it would leave the
+     * occupancy count with no exit to bring it back down.
+     */
+    public Vehicle delete(String id) throws Exception {
+        Vehicle vehicle = findById(id).orElseThrow(() -> ApiException.notFound("Vehicle not found."));
+        if ("INSIDE".equals(vehicle.getCurrentStatus())) {
+            throw ApiException.conflict("Vehicle " + vehicle.getRegNo() + " is inside. Record its exit before deleting it.");
+        }
+        repo.delete(COLLECTION, id);
+        return vehicle;
+    }
+
     public void updateStatus(String id, String currentStatus) throws Exception {
         repo.update(COLLECTION, id, Map.of("currentStatus", currentStatus));
     }

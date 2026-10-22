@@ -49,14 +49,15 @@ public class AuthController {
     }
 
     /**
-     * Identity comes from the verified token's claims; the Firestore profile only
-     * fills in details the token does not carry.
+     * Identity and role come from the verified token's claims; the Firestore profile
+     * fills in details the token does not carry. The display name is taken from the
+     * profile, because a token minted before a rename keeps the old name for up to an hour.
      */
     private static Map<String, Object> describe(AuthenticatedUser caller, Optional<User> profile) {
         Map<String, Object> safe = new LinkedHashMap<>();
         safe.put("uid", caller.uid());
         safe.put("id", profile.map(User::getId).orElse(caller.uid()));
-        safe.put("name", caller.displayName());
+        safe.put("name", profile.map(User::getName).filter(n -> !n.isBlank()).orElse(caller.displayName()));
         safe.put("username", caller.username());
         safe.put("email", caller.email());
         safe.put("role", caller.role());
