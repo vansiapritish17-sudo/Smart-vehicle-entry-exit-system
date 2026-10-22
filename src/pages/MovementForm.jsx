@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, DoorClosed, DoorOpen, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, DoorClosed, DoorOpen, ListFilter, Search, XCircle } from "lucide-react";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import { Input, Select } from "../components/common/Field";
@@ -34,6 +34,9 @@ export default function MovementForm({ mode }) {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const pickerRef = useRef(null);
   const isEntry = mode === "entry";
 
   const activeGates = configuration.gates.filter((gate) => gate.status === "ACTIVE");
@@ -41,6 +44,31 @@ export default function MovementForm({ mode }) {
   const candidates = vehicles.filter((v) =>
     isEntry ? v.registrationStatus === "ACTIVE" && v.currentStatus === "OUTSIDE" : v.currentStatus === "INSIDE"
   );
+
+  const query = pickerQuery.trim().toUpperCase();
+  const pickerMatches = candidates.filter(
+    (v) => !query || v.regNo.toUpperCase().includes(query) || (v.owner ?? "").toUpperCase().includes(query)
+  );
+
+  // Close the vehicle picker on outside click or Escape, and clear its search.
+  useEffect(() => {
+    if (!pickerOpen) {
+      setPickerQuery("");
+      return;
+    }
+    const onPointer = (e) => {
+      if (!pickerRef.current?.contains(e.target)) setPickerOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
 
   // Default to the first active gate once configuration arrives, and fall back if
   // the selected gate is closed while the form is open.
@@ -54,6 +82,7 @@ export default function MovementForm({ mode }) {
   // Switching between entry and exit starts a fresh form.
   useEffect(() => {
     setResult(null);
+    setPickerOpen(false);
     setForm((f) => ({ ...f, regNo: "" }));
   }, [mode]);
 
@@ -91,38 +120,67 @@ export default function MovementForm({ mode }) {
         </div>
 
         <form onSubmit={submit} className="grid gap-4">
-          <div className="grid gap-2">
+          <div ref={pickerRef} className="relative">
             <Input
               label="Vehicle Registration Number"
               value={form.regNo}
               onChange={(e) => setForm({ ...form, regNo: e.target.value.toUpperCase() })}
               required
               placeholder="e.g. MH12AB1234"
+              className="pr-11"
             />
-            {/* Quick-pick from the vehicles this action applies to */}
-            {candidates.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                  {isEntry ? "Vehicles outside" : "Vehicles inside"} — click to fill
+            {/* Pick from the registered vehicles this action applies to */}
+            <button
+              type="button"
+              onClick={() => setPickerOpen((open) => !open)}
+              title={isEntry ? "Select a registered vehicle" : "Select a vehicle inside"}
+              aria-label="Select registered vehicle"
+              aria-expanded={pickerOpen}
+              className={`absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg transition ${
+                pickerOpen ? "bg-violet-500/20 text-violet-300" : "text-zinc-500 hover:bg-white/8 hover:text-zinc-200"
+              }`}
+            >
+              <ListFilter size={15} />
+            </button>
+            {pickerOpen && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1.5 rounded-xl border border-white/10 bg-[var(--surface-2)] p-2 shadow-xl shadow-black/40">
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5">
+                  <Search size={13} className="text-zinc-500" />
+                  <input
+                    autoFocus
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder="Search number or owner"
+                    className="w-full bg-transparent text-xs text-zinc-100 outline-none placeholder:text-zinc-600"
+                  />
+                </div>
+                <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                  {isEntry ? "Registered vehicles outside" : "Vehicles inside"}
                 </p>
-                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                  {candidates
-                    .slice(0, 40)
-                    .map((v) => (
+                <ul className="max-h-56 overflow-y-auto">
+                  {pickerMatches.length === 0 && (
+                    <li className="px-2 py-3 text-center text-xs text-zinc-500">No matching vehicles</li>
+                  )}
+                  {pickerMatches.map((v) => (
+                    <li key={v.id}>
                       <button
-                        key={v.id}
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, regNo: v.regNo }))}
-                        className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
-                          form.regNo === v.regNo
-                            ? "border-violet-500/60 bg-violet-500/15 text-violet-300"
-                            : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, regNo: v.regNo }));
+                          setPickerOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition ${
+                          form.regNo === v.regNo ? "bg-violet-500/15 text-violet-300" : "text-zinc-200 hover:bg-white/8"
                         }`}
                       >
-                        {v.regNo}
+                        <span className="font-mono text-xs font-semibold">{v.regNo}</span>
+                        <span className="truncate text-[11px] text-zinc-500">
+                          {[v.owner, v.type].filter(Boolean).join(" · ")}
+                        </span>
                       </button>
-                    ))}
-                </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
