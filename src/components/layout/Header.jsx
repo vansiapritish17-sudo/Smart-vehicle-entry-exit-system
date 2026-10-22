@@ -1,5 +1,5 @@
 import { Bell, LogOut, Menu, Search, ShieldCheck, User, X } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../../state/AppContext";
 
 const adminTabs = [
@@ -43,11 +43,17 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
 
         {/* Logo */}
         <div className="flex shrink-0 items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-lg shadow-violet-900/40">
-            <ShieldCheck size={16} strokeWidth={2.5} />
-          </div>
-          <span className="hidden text-sm font-bold tracking-wide text-zinc-100 sm:block">BARBICAN</span>
-          {/* Live / loading / offline indicator */}
+          <Link
+            to="/dashboard"
+            aria-label="Barbican — go to dashboard"
+            className="flex items-center gap-2.5 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+          >
+            <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-lime-300 via-violet-500 to-violet-800 shadow-lg shadow-violet-900/40">
+              <ShieldCheck size={16} strokeWidth={2.5} />
+            </div>
+            <span className="hidden text-sm font-bold tracking-wide text-zinc-100 sm:block">BARBICAN</span>
+          </Link>
+          {/* Shown only when something needs attention: loading or offline */}
           {syncError ? (
             <span
               title={syncError}
@@ -61,12 +67,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen }) {
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-pulse" />
               LOADING
             </span>
-          ) : (
-            <span className="hidden sm:flex items-center gap-1 rounded-full bg-lime-400/10 px-2 py-0.5 text-[10px] font-bold text-lime-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-lime-400 animate-pulse" />
-              LIVE
-            </span>
-          )}
+          ) : null}
         </div>
 
         {/* Desktop tabs — pill nav */}
