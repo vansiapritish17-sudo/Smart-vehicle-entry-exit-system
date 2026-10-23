@@ -17,6 +17,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.io.IOException;
 import java.util.List;
@@ -71,10 +72,25 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
         // CORS preflight carries no Authorization header by design.
         if (HttpMethod.OPTIONS.matches(request.getMethod())) return true;
 
-        String path = request.getRequestURI();
+        String path = pathOf(request);
         if (!path.startsWith("/api/")) return true;
 
         return publicPaths.stream().anyMatch(pattern -> matcher.match(pattern.trim(), path));
+    }
+
+    /**
+     * The path as Spring MVC routes it: percent-decoded, `;params` removed and `//`
+     * collapsed. Matching the raw URI instead would let `/%61pi/users` or
+     * `/api/users;x` skip these checks yet still reach the controller.
+     */
+    static String pathOf(HttpServletRequest request) {
+        return PATHS.getPathWithinApplication(request);
+    }
+
+    private static final UrlPathHelper PATHS = new UrlPathHelper();
+    static {
+        PATHS.setUrlDecode(true);
+        PATHS.setRemoveSemicolonContent(true);
     }
 
     @Override
@@ -125,7 +141,7 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresAdmin(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = pathOf(request);
         String method = request.getMethod();
 
         for (String entry : adminPaths) {

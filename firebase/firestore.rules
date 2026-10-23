@@ -15,9 +15,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // A deactivated user is disabled in Firebase Auth and can no longer obtain a
-    // token, so a present `request.auth` already implies an active account.
+    // token. Requiring a role claim as well means an account that merely exists in
+    // Firebase Auth (e.g. one created through the public sign-up API with the web
+    // apiKey) reads nothing: only accounts the backend provisioned carry a role.
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && request.auth.token.role in ['Administrator', 'Security Operator'];
     }
 
     function isAdmin() {
