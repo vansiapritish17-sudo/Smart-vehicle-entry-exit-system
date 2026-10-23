@@ -26,7 +26,7 @@ export default function OccupancyPanel({ inside, capacity, threshold, loading = 
         {!loading && <span className={`text-xs font-medium ${state.text}`}>{state.label}</span>}
       </div>
 
-      <div className="flex flex-1 items-center gap-3 py-5">
+      <div className="flex flex-1 items-center py-5">
         {loading ? (
           <Skeleton className="h-12 w-36" />
         ) : (
@@ -35,7 +35,22 @@ export default function OccupancyPanel({ inside, capacity, threshold, loading = 
             <span className="text-2xl text-zinc-600"> / {capacity}</span>
           </p>
         )}
-        {!loading && <span className="self-end pb-1 font-mono text-sm tabular-nums text-zinc-500">{percent}%</span>}
+      </div>
+
+      {/* Current fill, labelled at its tip above the bar, as the threshold is below it.
+          Near either end the label anchors inward so it never hangs off the card. */}
+      <div className="relative mb-1.5 h-4">
+        {!loading && (
+          <span
+            className={`absolute bottom-0 font-mono text-[11px] font-medium tabular-nums transition-[left] duration-700 ease-out ${state.text}`}
+            style={{
+              left: `${percent}%`,
+              transform: `translateX(${percent < 5 ? "-4px" : percent > 95 ? "-100%" : "-50%"})`,
+            }}
+          >
+            {percent}%
+          </span>
+        )}
       </div>
 
       <div className="relative">
