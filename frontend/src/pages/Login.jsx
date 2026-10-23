@@ -149,15 +149,14 @@ function BrandPanel() {
           <Plate />
         </div>
 
-        <h1 className="auth-enter auth-delay-2 mt-14 text-[3.25rem] font-semibold leading-[1.02] tracking-[-0.035em] xl:text-[3.75rem]">
-          Every vehicle,
+        <h1 className="auth-enter auth-delay-2 mt-14 text-[3rem] font-semibold leading-[1.04] tracking-[-0.035em] xl:text-[3.5rem]">
+          Guarding gates
           <br />
-          <span className="text-zinc-500">accounted for.</span>
+          <span className="text-zinc-500">since the Middle Ages.</span>
         </h1>
-        <p className="auth-enter auth-delay-2 mt-6 max-w-md text-[15px] leading-relaxed text-zinc-400">
-          A barbican is the fortified gatehouse of a castle — the one place where
-          everything coming in or going out is checked. This one checks registrations
-          at the gate, tracks occupancy live, and keeps the full record.
+        <p className="auth-enter auth-delay-3 mt-7 flex items-center gap-4 font-mono text-[13px] uppercase tracking-[0.32em] text-zinc-400">
+          <span aria-hidden className="h-px w-10 bg-lime-300/60" />
+          Now <span className="-ml-2 text-lime-300">smarter.</span>
         </p>
       </div>
 
